@@ -1,0 +1,100 @@
+Design Spec: tpt-model (Layer 2)
+1. Mission & Scope
+Mission: To provide a unified, pure-Rust domain modeling, schema definition, and structural evolution engine. It serves as the single source of truth for entity shapes across the TPT ecosystem, ensuring that when a data model changes (e.g., adding a new field to a CAD document or changing a user profile structure), older persisted data can be seamlessly validated and migrated to the new schema without data loss or application crashes.
+Scope:
+In Scope: Rust macro-driven schema definition, schema registry, structural schema evolution (adding/dropping/renaming fields, changing types), programmatic data migrations (writing custom Rust code to transform data), stable entity IDs, and integration with tpt-validex for underlying byte-level validation.
+Out of Scope: Wire-format serialization (handled by tpt-uir), raw SIMD byte-stream validation (handled by tpt-validex), and document compliance/claims (handled by tpt-concord).
+2. Core Constraints & Architecture
+Zero C-FFI: 100% Pure Rust.
+no_std + alloc Capable: The core schema graph and migration logic must be no_std compatible so it can run in embedded environments (like tpt-l-riscv) or WASM (tpt-pwa, tpt-vertex).
+Type-Safe Evolution: Migrations must be checked by the Rust compiler where possible. If a field is removed, the compiler should force the developer to write a migration script that handles the removed data.
+Deterministic: Applying a migration to an old entity must yield the exact same new entity regardless of the host OS or architecture.
+The Dependency Map
+Validation: tpt-validex (Used under the hood to verify the raw bytes match the expected schema version before migration).
+Serialization: tpt-uir (The IR layer that tpt-model reads/writes to perform the actual data transformation).
+IDs: uuid (specifically UUIDv7 for time-sortable, stable IDs).
+3. Core Modules & API Design
+Module A: tpt_model::schema (The Meta-Model & Registry)
+Defines what a "Schema" actually is. A schema is a directed acyclic graph of types (Structs, Enums, Unions, Maps, Arrays).
+Schema Graph: Every struct derived via macros generates a Schema object that describes its fields, types, and constraints.
+Versioning: Schemas are versioned (e.g., UserV1, UserV2).
+Registry: A global or scoped registry that maps a SchemaId (a hash of the schema structure) to the actual Schema definition.
+Key Trait:
+
+pub trait Model: Sized {
+    const SCHEMA_ID: SchemaId;
+    const SCHEMA_VERSION: u32;
+    fn schema() -> &'static Schema;
+}
+
+Module B: tpt_model::derive (Ergonomic Macros)
+Provides derive macros to eliminate boilerplate, turning standard Rust structs into fully tracked tpt-model entities.
+#[derive(Model)]: Automatically implements the Model trait, generates the schema graph, and registers it.
+#[tpt(rename = "...")], #[tpt(default = "...")]: Field-level attributes to control evolution and serialization behavior.
+Example:
+
+#[derive(Model, Serialize, Deserialize)]
+#[tpt(version = 2)]
+pub struct CadPart {
+    pub id: UuidV7,
+    pub name: String,
+    #[tpt(since = 2, default = "Material::Titanium")]
+    pub material: Material, // Added in V2
+    #[tpt(removed_in = 2, migrate = "migrate_legacy_weight")]
+    pub legacy_weight_kg: Option<f32>, // Removed in V2
+}
+
+Module C: tpt_model::evolve (The Evolution & Migration Engine)
+This is the crown jewel of the crate. When an application running CadPartV2 tries to load a binary blob that was saved as CadPartV1, this engine takes over.
+Automated Structural Evolution: If a field was simply added with a default value, or renamed, tpt-model handles the transformation automatically via tpt-uir without developer intervention.
+Programmatic Migrations: For complex changes (e.g., converting weight_kg to mass_lbs), the developer registers a migration function.
+Key Trait:
+
+pub trait Migration {
+    type From: Model;
+    type To: Model;
+    
+    // The developer writes the logic to transform the old IR node into the new IR node
+    fn migrate(old: &UirNode, ctx: &MigrationContext) -> Result<UirNode, MigrationError>;
+}
+
+Module D: tpt_model::entity (Identity & State)
+Handles the lifecycle of an entity instance.
+Stable IDs: Enforces the use of UUIDv7 or ULID for primary keys, ensuring that entities are globally unique and time-sortable.
+Envelope Wrapping: Every entity stored in a database or sent over a network is wrapped in a ModelEnvelope which contains the SchemaId, the Version, and a cryptographic hash (via tpt-crypto) to detect tampering before validation.
+4. The Processing Pipeline (The "Load" Flow)
+How an old document is opened in a new version of the app:
+Envelope Read: The app reads the ModelEnvelope from disk. It sees the data is CadPart V1.
+Validation: The raw bytes are passed to tpt-validex. tpt-validex uses the V1 schema to ensure the bytes are not corrupted or maliciously malformed.
+Deserialization to IR: The bytes are parsed into the tpt-uir (Universal Intermediate Representation) graph.
+Migration Resolution: tpt_model::evolve looks at the registry. It sees a path from V1 -> V2.
+Execution: It applies any automated structural changes (e.g., dropping legacy_weight_kg), then executes the custom migrate_legacy_weight Rust function on the IR node.
+Hydration: The migrated V2 IR node is hydrated into the actual Rust CadPartV2 struct in memory.
+Success: The application receives the struct, completely unaware that the file on disk was 5 years old.
+5. Integration with the TPT Ecosystem
+tpt-validex: tpt-model generates the raw validation schemas that tpt-validex consumes. While tpt-validex works in Python/JS/Go, tpt-model is the Rust-native orchestrator that generates those schemas.
+tpt-uir: tpt-model relies heavily on tpt-uir. Instead of migrating raw Rust structs (which is hard and unsafe), tpt-model migrates the tpt-uir data tree, and then deserializes the final tree into the Rust struct.
+tpt-vertex & tpt-doc: These applications save massive, complex files. tpt-model guarantees that a CAD file or OOXML document saved in 2026 can be opened flawlessly in 2030, even if the internal data structures have been heavily refactored.
+tpt-primitives: tpt-model uses tpt-primitives for foundational concepts like Intent and Capability when defining access controls on specific entity fields.
+6. Testing & Quality Strategy
+Evolution Matrix Testing: Using tpt-testkit, we will generate a matrix of schemas (V1 through V10). We will write a script that serializes an entity at V1, and then forces the evolution engine to migrate it step-by-step all the way to V10, asserting that no data is lost and the final struct is correct.
+Fuzzing Migrations: Feed garbage IR nodes into the migration engine to ensure that MigrationError is returned gracefully and memory safety is preserved.
+Golden File Snapshots: The generated schema definitions (JSON/YAML output) will be golden-file tested to ensure that a refactor of a Rust struct doesn't accidentally change the wire-format schema ID, which would break backwards compatibility.
+7. Roadmap & Milestones
+Phase 1: The Meta-Model & Macros (Weeks 1-3)
+Define the Schema graph types.
+Implement #[derive(Model)] to automatically generate schemas from Rust structs.
+Implement the ModelEnvelope.
+Phase 2: Automated Evolution (Weeks 4-5)
+Integrate tpt-uir to allow reading entities into a generic tree.
+Implement automated structural migrations (defaults, additions, deletions).
+Phase 3: Programmatic Migrations (Weeks 6-8)
+Implement the Migration trait and the migration registry.
+Build the engine that chains multiple migrations together (V1 -> V2 -> V3).
+Phase 4: Ecosystem Integration (Weeks 9-10)
+Hook into tpt-validex to provide the raw schemas for cross-language validation.
+Integrate into tpt-vertex to manage the CAD document schema.
+Publish v1.0.0.
+Architect's Note
+The most dangerous trap with schema evolution crates is "Migration Hell"—where the codebase becomes littered with hundreds of migration scripts for versions that haven't been used in years.
+To combat this, tpt-model should include a Squash/Compact CLI tool. Once a year, developers can run a tool that takes the current V10 struct, generates a fresh V10 schema, and deletes all the old V1 through V9 migration code, requiring the application to maintain a "minimum supported version" (e.g., "This app supports files back to V8").
