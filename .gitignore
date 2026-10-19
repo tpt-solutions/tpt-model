@@ -14,3 +14,8 @@ Thumbs.db
 
 # Env
 .env
+
+# Fuzzing
+fuzz/target
+fuzz/corpus
+fuzz/artifacts

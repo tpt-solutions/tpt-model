@@ -1,0 +1,46 @@
+# Policy for cargo-deny: zero C-FFI in shipped code, permissive licences only.
+# Run with: cargo deny check
+
+[graph]
+# Dev-only tooling (criterion, trybuild, proptest) is not shipped, so it is excluded.
+exclude-dev = true
+targets = [
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-pc-windows-msvc" },
+    { triple = "thumbv7em-none-eabihf" },
+    { triple = "wasm32-unknown-unknown" },
+]
+
+[advisories]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "CC0-1.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# C toolchain and FFI glue must not appear in the shipped graph.
+#
+# Exception: blake3 lists `cc` as a build dependency. With its `pure` feature (which
+# tpt-crypto-stub enables) its build script compiles no C or assembly, so the exception
+# is scoped to that single wrapper.
+deny = [
+    { name = "cc", wrappers = ["blake3"] },
+    { name = "cmake" },
+    { name = "pkg-config" },
+    { name = "bindgen" },
+    { name = "libc" },
+    { name = "openssl-sys" },
+    { name = "ring" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test workspace
+        run: cargo test --workspace
+      - name: Run end-to-end example
+        run: cargo run -p tpt-model --example cad_part
+      # Golden files hold byte-exact exports and schema ids. Identical output on every OS
+      # is the cross-platform determinism check.
+      - name: Golden files unchanged
+        run: cargo test -p tpt-model --test golden
+
+  no-std:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [thumbv7em-none-eabihf, wasm32-unknown-unknown]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Core crate without std
+        run: cargo build -p tpt-model --no-default-features --target ${{ matrix.target }}
+      - name: Stubs without std
+        run: >-
+          cargo build --target ${{ matrix.target }}
+          -p tpt-uir-stub -p tpt-crypto-stub -p tpt-validex-stub -p tpt-primitives-stub
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check bans licenses sources advisories
+      - name: No -sys or C-FFI crates in the shipped graph
+        run: |
+          if cargo tree -e normal --workspace --prefix none | sed 's/ v[0-9].*//' | sort -u | grep -E -- '-sys$'; then
+            echo "C-FFI crate found in the normal dependency graph"; exit 1
+          fi
+
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo miri setup
+      - run: cargo miri test -p tpt-model --lib
+        env:
+          MIRIFLAGS: -Zmiri-disable-isolation
+
+  fuzz-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo fuzz build --fuzz-dir fuzz
+      - name: Short fuzz run
+        run: |
+          cargo fuzz run --fuzz-dir fuzz uir_decode -- -max_total_time=60
+          cargo fuzz run --fuzz-dir fuzz envelope_load -- -max_total_time=60
+
+  bench-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo bench -p tpt-model --no-run
