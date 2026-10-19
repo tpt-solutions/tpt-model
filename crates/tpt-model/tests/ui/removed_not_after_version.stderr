@@ -1,0 +1,5 @@
+error: field `old` has removed_in = 3, which must be greater than this version (3)
+  --> tests/ui/removed_not_after_version.rs:13:11
+   |
+13 |     #[tpt(removed_in = 3, migrate = "migrate")]
+   |           ^^^^^^^^^^

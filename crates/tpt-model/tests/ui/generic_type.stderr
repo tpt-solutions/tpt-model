@@ -1,0 +1,5 @@
+error: #[derive(Model)] does not support generic types
+ --> tests/ui/generic_type.rs:4:13
+  |
+4 | struct Thing<T> {
+  |             ^

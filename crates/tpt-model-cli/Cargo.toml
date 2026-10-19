@@ -1,0 +1,23 @@
+[package]
+name = "tpt-model-cli"
+description = "Squash/compact CLI for tpt-model: plans and applies removal of versions below a minimum supported version"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[lib]
+name = "tpt_model_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tpt-model"
+path = "src/main.rs"
+
+[dependencies]
+syn.workspace = true
+quote.workspace = true
+proc-macro2.workspace = true

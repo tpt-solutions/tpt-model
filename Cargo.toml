@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/tpt-model",
+    "crates/tpt-model-derive",
+    "crates/tpt-model-cli",
+    "crates/tpt-uir-stub",
+    "crates/tpt-validex-stub",
+    "crates/tpt-crypto-stub",
+    "crates/tpt-primitives-stub",
+    "crates/tpt-testkit-stub",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/PhillipC05/tpt-model"
+authors = ["TPT Contributors"]
+keywords = ["schema", "migration", "evolution", "serde", "no-std"]
+categories = ["data-structures", "no-std", "encoding"]
+
+[workspace.dependencies]
+tpt-model = { path = "crates/tpt-model", version = "0.1.0" }
+tpt-model-derive = { path = "crates/tpt-model-derive", version = "0.1.0" }
+tpt-uir-stub = { path = "crates/tpt-uir-stub", version = "0.1.0" }
+tpt-validex-stub = { path = "crates/tpt-validex-stub", version = "0.1.0" }
+tpt-crypto-stub = { path = "crates/tpt-crypto-stub", version = "0.1.0" }
+tpt-primitives-stub = { path = "crates/tpt-primitives-stub", version = "0.1.0" }
+tpt-testkit-stub = { path = "crates/tpt-testkit-stub", version = "0.1.0" }
+serde = { version = "1.0", default-features = false }
+uuid = { version = "1.28", default-features = false }
+blake3 = { version = "1.8", default-features = false, features = ["pure"] }
+syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+quote = "1"
+proc-macro2 = { version = "1", features = ["span-locations"] }

@@ -1,0 +1,5 @@
+error: only structs with named fields are supported
+ --> tests/ui/tuple_struct.rs:4:8
+  |
+4 | struct Thing(u32, u32);
+  |        ^^^^^

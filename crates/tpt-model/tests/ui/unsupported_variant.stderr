@@ -1,0 +1,5 @@
+error: only unit and single-field tuple variants are supported
+ --> tests/ui/unsupported_variant.rs:5:5
+  |
+5 |     Pair(u32, u32),
+  |     ^^^^

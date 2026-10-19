@@ -1,0 +1,30 @@
+[package]
+name = "tpt-model-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde = { version = "1", features = ["derive"] }
+tpt-model = { path = "../crates/tpt-model" }
+tpt-uir-stub = { path = "../crates/tpt-uir-stub" }
+tpt-crypto-stub = { path = "../crates/tpt-crypto-stub" }
+tpt-validex-stub = { path = "../crates/tpt-validex-stub" }
+
+[[bin]]
+name = "uir_decode"
+path = "fuzz_targets/uir_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "envelope_load"
+path = "fuzz_targets/envelope_load.rs"
+test = false
+doc = false
+
+[workspace]

@@ -1,0 +1,5 @@
+error: field `value`: intent must be "read" or "write", not "admin"
+ --> tests/ui/bad_intent.rs:5:11
+  |
+5 |     #[tpt(intent = "admin", capability = "x")]
+  |           ^^^^^^

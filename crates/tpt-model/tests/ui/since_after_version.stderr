@@ -1,0 +1,5 @@
+error: field `added_later` has since = 2, outside 1..=1
+ --> tests/ui/since_after_version.rs:6:11
+  |
+6 |     #[tpt(since = 2)]
+  |           ^^^^^

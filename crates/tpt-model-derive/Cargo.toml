@@ -1,0 +1,17 @@
+[package]
+name = "tpt-model-derive"
+description = "Derive macro for tpt-model: #[derive(Model)] with version, since, removed_in, rename, default and migrate attributes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn.workspace = true
+quote.workspace = true
+proc-macro2.workspace = true

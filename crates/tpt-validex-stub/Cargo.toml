@@ -1,0 +1,12 @@
+[package]
+name = "tpt-validex-stub"
+description = "Local stand-in for tpt-validex: byte-level validation hook used by tpt-model's load pipeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+tpt-uir-stub.workspace = true

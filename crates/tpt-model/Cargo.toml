@@ -1,0 +1,35 @@
+[package]
+name = "tpt-model"
+description = "Schema definition, registry and structural evolution with type-checked migrations (no_std + alloc)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "../../README.md"
+
+[features]
+default = ["std"]
+std = []
+global-registry = ["std"]
+
+[dependencies]
+serde = { workspace = true, features = ["alloc"] }
+uuid.workspace = true
+tpt-model-derive.workspace = true
+tpt-uir-stub.workspace = true
+tpt-validex-stub.workspace = true
+tpt-crypto-stub.workspace = true
+tpt-primitives-stub.workspace = true
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive", "std"] }
+proptest = "1"
+trybuild = "1"
+tpt-testkit-stub.workspace = true
+criterion = "0.8"
+
+[[bench]]
+name = "migration"
+harness = false

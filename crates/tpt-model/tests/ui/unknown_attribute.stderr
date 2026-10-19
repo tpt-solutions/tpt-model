@@ -1,0 +1,5 @@
+error: unknown tpt attribute `sinse` on a field
+ --> tests/ui/unknown_attribute.rs:6:11
+  |
+6 |     #[tpt(sinse = 1)]
+  |           ^^^^^

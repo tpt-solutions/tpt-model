@@ -1,0 +1,5 @@
+error: `migrate` on field `value` requires `removed_in`
+  --> tests/ui/migrate_without_removed_in.rs:12:11
+   |
+12 |     #[tpt(migrate = "migrate")]
+   |           ^^^^^^^
