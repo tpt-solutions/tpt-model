@@ -1,0 +1,185 @@
+{
+  "schemas": [
+    {
+      "name": "Everything",
+      "version": 1,
+      "id": "2c3e808dafc7d9b12497b606687ef254334e352a3612ba831cd57f12c130a549",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "count",
+          "type": "u64",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": [
+            "min 1",
+            "max 99"
+          ]
+        },
+        {
+          "name": "offset",
+          "type": "i64",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "ratio",
+          "type": "f64",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "flag",
+          "type": "bool",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "bytes",
+          "type": "bytes",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "tags",
+          "type": "array<string>",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "maybe",
+          "type": "option<string>",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "kind",
+          "type": "ShapeKind",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "table",
+          "type": "map<string, u64>",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "secret",
+          "type": "string",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": {
+            "intent": "read",
+            "capability": "secrets.read"
+          },
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "title",
+          "type": "option<string>",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [
+            "old_title"
+          ],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "Shape",
+      "version": 1,
+      "id": "0ff8c5321168fd06be2511155e635694e871e71788604d4b26bbe676a04658dc",
+      "kind": "enum",
+      "variants": [
+        {
+          "name": "Round",
+          "since": 1,
+          "removed_in": null,
+          "migrate": null,
+          "payload": null
+        },
+        {
+          "name": "Square",
+          "since": 1,
+          "removed_in": null,
+          "migrate": null,
+          "payload": null
+        }
+      ]
+    }
+  ]
+}

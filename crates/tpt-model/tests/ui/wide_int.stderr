@@ -1,0 +1,5 @@
+error: 128-bit integers are not supported by tpt-model; use u64, i64 or a byte array
+ --> tests/ui/wide_int.rs:5:12
+  |
+5 |     value: u128,
+  |            ^^^^

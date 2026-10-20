@@ -3,6 +3,7 @@ name = "tpt-model"
 description = "Schema definition, registry and structural evolution with type-checked migrations (no_std + alloc)"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true
@@ -24,7 +25,7 @@ tpt-crypto-stub.workspace = true
 tpt-primitives-stub.workspace = true
 
 [dev-dependencies]
-serde = { workspace = true, features = ["derive", "std"] }
+serde = { workspace = true, features = ["derive"] }
 proptest = "1"
 trybuild = "1"
 tpt-testkit-stub.workspace = true

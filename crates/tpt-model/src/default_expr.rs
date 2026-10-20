@@ -5,12 +5,15 @@
 //! ```text
 //! expr   := "null" | "None" | "true" | "false"
 //!         | integer                  e.g. -3, 42      -> Int (or UInt above i64::MAX)
-//!         | float                    e.g. 1.5, -0.25  -> Float
+//!         | float                    e.g. 1.5, -0.25, 1e5 -> Float
 //!         | "\"" text "\""           string literal   -> Str
-//!         | ident "::" ident         enum variant    -> Str(variant)
-//!         | "[" "]"                  empty sequence  -> Seq([])
-//!         | "{}"                     empty map       -> Map([])
+//!         | path "::" ident          enum variant     -> Str(variant)
+//!         | "[" "]"                  empty sequence   -> Seq([])
+//!         | "{}"                     empty map        -> Map([])
 //! ```
+//!
+//! String literals accept the escapes `\\`, `\"`, `\n`, `\r` and `\t`. Any other escape is
+//! an error. A path such as `crate::Material::Steel` yields its last segment, `Steel`.
 //!
 //! Enum variants are stored as their name, matching the serde mapping of unit variants.
 
@@ -50,22 +53,23 @@ pub fn eval(expr: &str) -> Result<UirNode, DefaultError> {
     }
 
     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
-        let inner = &s[1..s.len() - 1];
-        if inner.contains('"') {
-            return Err(fail("unescaped quote in string literal"));
-        }
-        return Ok(UirNode::Str(inner.to_string()));
+        return unescape(&s[1..s.len() - 1])
+            .map(UirNode::Str)
+            .map_err(&fail);
     }
 
-    if let Some((ty, variant)) = s.split_once("::") {
-        if is_ident(ty) && is_ident(variant) {
+    if s.contains("::") {
+        let segments: Vec<&str> = s.split("::").collect();
+        if segments.len() >= 2 && segments.iter().all(|seg| is_ident(seg)) {
+            let variant = segments[segments.len() - 1];
             return Ok(UirNode::Str(variant.to_string()));
         }
-        return Err(fail("expected `Type::Variant`"));
+        return Err(fail("expected `Type::Variant` or `path::Type::Variant`"));
     }
 
     if looks_numeric(s) {
-        if s.contains('.') {
+        // Exponent notation is a float, so it must not reach the integer parse below.
+        if s.contains(['.', 'e', 'E']) {
             return s
                 .parse::<f64>()
                 .map(UirNode::Float)
@@ -81,6 +85,29 @@ pub fn eval(expr: &str) -> Result<UirNode, DefaultError> {
     }
 
     Err(fail("unrecognised expression"))
+}
+
+/// Resolves the body of a string literal (without its quotes).
+fn unescape(inner: &str) -> Result<String, &'static str> {
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' => return Err("unescaped quote in string literal"),
+            '\\' => out.push(match chars.next() {
+                Some('\\') => '\\',
+                Some('"') => '"',
+                Some('n') => '\n',
+                Some('r') => '\r',
+                Some('t') => '\t',
+                _ => {
+                    return Err("unknown escape in string literal; use \\\\, \\\", \\n, \\r or \\t")
+                }
+            }),
+            other => out.push(other),
+        }
+    }
+    Ok(out)
 }
 
 fn is_ident(s: &str) -> bool {
@@ -121,6 +148,36 @@ mod tests {
             UirNode::Str("Titanium".into())
         );
         assert_eq!(eval("[]").unwrap(), UirNode::Seq(Vec::new()));
+    }
+
+    #[test]
+    fn string_escapes_are_resolved() {
+        assert_eq!(
+            eval(r#""a\"b\\c\n\t""#).unwrap(),
+            UirNode::Str("a\"b\\c\n\t".into())
+        );
+        assert!(eval(r#""bad \x""#).is_err());
+        assert!(eval(r#""dangling\""#).is_err());
+    }
+
+    #[test]
+    fn exponent_notation_is_a_float() {
+        assert_eq!(eval("1e5").unwrap(), UirNode::Float(100_000.0));
+        assert_eq!(eval("-2.5E-1").unwrap(), UirNode::Float(-0.25));
+        assert_eq!(
+            eval("1e").unwrap_err().message,
+            "bad float literal",
+            "a broken exponent is reported as a float, not as an out-of-range integer"
+        );
+    }
+
+    #[test]
+    fn qualified_variant_paths_yield_the_variant() {
+        assert_eq!(
+            eval("crate::Material::Steel").unwrap(),
+            UirNode::Str("Steel".into())
+        );
+        assert!(eval("crate::::Steel").is_err());
     }
 
     #[test]

@@ -493,12 +493,11 @@ fn nested_enums_round_trip_and_unknown_variants_fail() {
     assert!(
         matches!(
             err,
-            LoadError::Migration(MigrationError::InvalidResult {
+            LoadError::SourceShape {
                 name: "Holder",
-                from: 1,
-                to: 1,
-                ..
-            })
+                version: 1,
+                error: tpt_model::shape::ShapeError::UnknownVariant { .. },
+            }
         ),
         "got {err:?}"
     );
@@ -588,13 +587,15 @@ fn field_access_follows_intent_and_capability() {
 
 #[test]
 fn redaction_removes_denied_fields() {
+    let mut registry = Registry::new();
+    registry.register::<SecretV1>().unwrap();
     let value = SecretV1 {
         public: 1,
         private: "p".into(),
         guarded: 2,
     };
     let node = tpt_model::ir_serde::to_node(&value).unwrap();
-    let redacted = access::redact(SecretV1::schema(), &node, Intent::Read, &[]);
+    let redacted = access::redact(&registry, SecretV1::schema(), &node, Intent::Read, &[]);
     assert!(redacted.get("public").is_some());
     assert!(redacted.get("private").is_none());
     assert!(redacted.get("guarded").is_some());
@@ -665,7 +666,7 @@ fn constraints_are_enforced_on_load() {
         .load::<BoundedV1>(&save(&Blake3, id(), &too_big).unwrap())
         .unwrap_err();
     assert!(
-        matches!(&err, LoadError::Migration(MigrationError::InvalidResult { error: tpt_model::shape::ShapeError::Constraint { path, .. }, .. }) if path == "$.count"),
+        matches!(&err, LoadError::SourceShape { error: tpt_model::shape::ShapeError::Constraint { path, .. }, .. } if path == "$.count"),
         "{err:?}"
     );
 

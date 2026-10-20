@@ -1,0 +1,53 @@
+{
+  "schemas": [
+    {
+      "name": "Pair",
+      "version": 1,
+      "id": "31820f1f6450458894286636dad3c367ff99a2314345858907a361598aba54f4",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "first",
+          "type": "u64",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "Pair",
+      "version": 2,
+      "id": "1e7d0a4e78d7a01b869430e0ef22f9da303fd87d7c4ef362c68fc40a4a0ab9eb",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "first",
+          "type": "u64",
+          "since": 1,
+          "removed_in": null,
+          "default": null,
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        },
+        {
+          "name": "second",
+          "type": "u64",
+          "since": 2,
+          "removed_in": null,
+          "default": "5",
+          "renames": [],
+          "access": null,
+          "migrate": null,
+          "constraints": []
+        }
+      ]
+    }
+  ]
+}

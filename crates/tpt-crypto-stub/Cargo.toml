@@ -3,6 +3,7 @@ name = "tpt-crypto-stub"
 description = "Local stand-in for tpt-crypto: a digest trait with a pure-Rust BLAKE3 implementation"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true

@@ -10,11 +10,18 @@ Rust struct, without the application knowing it came from an old file.
 
 ## Quickstart
 
+This is [`crates/tpt-model/examples/quickstart.rs`](crates/tpt-model/examples/quickstart.rs),
+complete. Run it with `cargo run -p tpt-model --example quickstart`.
+
 ```rust
 use serde::{Deserialize, Serialize};
-use tpt_model::{EntityId, Model};
+use tpt_crypto_stub::Blake3;
+use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
+use tpt_model::load::{save, Loader};
+use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
+use tpt_validex_stub::BoundsValidator;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Model)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Model)]
 #[tpt(version = 1)]
 enum Material {
     Steel,
@@ -40,17 +47,63 @@ struct CadPartV2 {
     #[tpt(since = 2)]
     mass_lbs: f64,
 }
+
+/// Turns the removed `weight_kg` into `mass_lbs`.
+fn migrate_legacy_weight(
+    old: &UirNode,
+    _ctx: &MigrationContext,
+) -> Result<UirNode, MigrationError> {
+    let mut node = old.clone();
+    let kg = match node.remove("weight_kg") {
+        Some(UirNode::Float(v)) => v,
+        _ => return Err(MigrationError::custom("weight_kg must be a float")),
+    };
+    node.insert("mass_lbs", UirNode::Float(kg * 2.204_62));
+    Ok(node)
+}
+
+struct CadPartStep;
+
+impl Migration for CadPartStep {
+    type From = CadPartV1;
+    type To = CadPartV2;
+    fn migrate(old: &UirNode, ctx: &MigrationContext) -> Result<UirNode, MigrationError> {
+        migrate_legacy_weight(old, ctx)
+    }
+}
+
+fn main() {
+    let mut registry = Registry::new();
+    registry.register::<Material>().expect("register Material");
+    let mut migrations = Migrations::new();
+    migrations
+        .register::<CadPartStep>(&mut registry)
+        .expect("register migration");
+
+    let id = EntityId::new_v7(1_700_000_000_000, [7; 10]);
+
+    // Written by the old build.
+    let stored = save(
+        &Blake3,
+        id,
+        &CadPartV1 {
+            id,
+            name: "bracket".into(),
+            weight_kg: 2.0,
+        },
+    )
+    .expect("save");
+
+    // Read by the new build.
+    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let part: CadPartV2 = loader.load(&stored).expect("load");
+    println!("{part:?}");
+    assert_eq!(part.material, Material::Titanium);
+}
 ```
 
-Save with the old build, load with the new one:
-
-```rust
-let bytes = tpt_model::load::save(&Blake3, id, &old_part)?;   // written by v1
-let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
-let part: CadPartV2 = loader.load(&bytes)?;                  // read by v2
-```
-
-The full, runnable version is in [`crates/tpt-model/examples/cad_part.rs`](crates/tpt-model/examples/cad_part.rs):
+The `cad_part` example adds the rest of the flow: a tampered payload is rejected, and
+current-version data round-trips without a migration.
 
 ```sh
 cargo run -p tpt-model --example cad_part
@@ -62,7 +115,7 @@ cargo run -p tpt-model --example cad_part
 |-------|------|----------|
 | [`tpt-model`](crates/tpt-model) | Schema graph, registry, evolution engine, envelope, load pipeline | yes |
 | [`tpt-model-derive`](crates/tpt-model-derive) | `#[derive(Model)]` | proc macro |
-| [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash`: plan and apply removal of old versions | std |
+| [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash` (plan and apply removal of old versions) and `tpt-model inspect` (envelope and tree of a stored entity); also `cargo tpt-model` | std |
 | `tpt-uir-stub` | Stand-in for `tpt-uir`: IR tree and canonical byte encoding | yes |
 | `tpt-validex-stub` | Stand-in for `tpt-validex`: byte-level validation | yes |
 | `tpt-crypto-stub` | Stand-in for `tpt-crypto`: digest trait, BLAKE3 (pure Rust) | yes |
@@ -94,7 +147,13 @@ cargo clippy --workspace --all-targets
 cargo deny check                             # licences, bans, sources, advisories
 cargo build -p tpt-model --no-default-features --target thumbv7em-none-eabihf
 
+cargo run -p tpt-model --example keyed_digest  # tamper evidence with a keyed digest
+cargo run -p tpt-model --example quickstart
+
 cargo run -p tpt-model-cli -- squash --min-supported 2 --patch squash.diff src/
+cargo run -p tpt-model-cli -- squash --min-supported 2 --json src/   # plan as JSON
+cargo run -p tpt-model-cli -- inspect path/to/entity.bin            # envelope and tree
+cargo tpt-model --help                                              # after installing the CLI
 ```
 
 Golden files are refreshed with `TPT_UPDATE_GOLDEN=1 cargo test -p tpt-model --test golden`.
@@ -105,8 +164,12 @@ Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`
 
 ## Documentation
 
+* [Five-minute tutorial](docs/TUTORIAL.md)
+* [Cookbook](docs/COOKBOOK.md): rename, split, merge, widen, enum changes, and when to migrate
+* [Error FAQ](docs/FAQ.md): what each error means and how to fix it
 * [Versioning rules](docs/VERSIONING.md)
 * [Migration author guide](docs/MIGRATION_GUIDE.md)
+* [Contributing](CONTRIBUTING.md) and [security policy](SECURITY.md)
 * [Design spec](spec.txt) and [implementation plan](TODO.md)
 * [Changelog](CHANGELOG.md)
 
@@ -115,6 +178,14 @@ Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`
 * **Schema ids** are a 256-bit digest computed in a `const fn`, so `Model::SCHEMA_ID` is a true
   constant. The digest is not cryptographic. It identifies a schema; tamper detection uses the
   BLAKE3 digest from `tpt-crypto`. Field order does not affect the id.
+* **Tamper evidence.** `Blake3` detects corruption only: anyone who can rewrite stored bytes can
+  also recompute their hash. `KeyedBlake3` (from `tpt-crypto-stub`) also rejects forgeries, provided
+  the key stays secret. See `examples/keyed_digest.rs`.
+* **Constraints** (`min`, `max`) apply to struct fields at any depth, including fields of nested
+  structs. They do not apply to enum payloads or to sequence items: a bound on an item would change
+  the schema id, so check those bounds in code.
+* **Name matching in `squash`** is by name, not by module path. A type that shares its name with
+  a removed type in another module can make the tool refuse. That is the safe direction.
 * **Global registry** (`global-registry` feature) is populated explicitly with
   `registry::global::register::<T>()`. There is no link-time auto-registration.
 * **Field access** (`intent`, `capability`) is enforced by `tpt_model::access`. The caller

@@ -85,8 +85,10 @@ pub fn kind_of(node: &UirNode) -> &'static str {
     }
 }
 
-/// Validates `node` against `schema`. Named references are resolved to the latest
-/// registered version of that name.
+/// Validates `node` against `schema`.
+///
+/// Named references are resolved at the version in flight: the version of `schema`,
+/// or for a nested type the version chosen for it. See [`Registry::at_or_before`].
 pub fn validate_node(
     registry: &Registry,
     schema: &Schema,
@@ -107,6 +109,8 @@ fn validate_schema(
             path: path.to_string(),
         });
     }
+    // Nested named types resolve relative to this schema's version.
+    let at = schema.version;
     match schema.def {
         TypeDef::Struct(fields) => {
             let entries = match node {
@@ -130,7 +134,7 @@ fn validate_schema(
                 let sub = child(path, f.name);
                 match node.get(f.name) {
                     Some(value) => {
-                        validate_type(registry, &f.ty, value, &sub, depth + 1)?;
+                        validate_type(registry, &f.ty, value, &sub, depth + 1, at)?;
                         check_constraints(f.constraints, value, &sub)?;
                     }
                     None => {
@@ -160,7 +164,7 @@ fn validate_schema(
                 match variants.iter().find(|v| v.name == name) {
                     Some(v) => match &v.payload {
                         Some(ty) => {
-                            validate_type(registry, ty, value, &child(path, name), depth + 1)
+                            validate_type(registry, ty, value, &child(path, name), depth + 1, at)
                         }
                         None => Err(ShapeError::TypeMismatch {
                             path: child(path, name),
@@ -182,7 +186,7 @@ fn validate_schema(
         },
         TypeDef::Union(members) => {
             for m in members {
-                if validate_type(registry, m, node, path, depth + 1).is_ok() {
+                if validate_type(registry, m, node, path, depth + 1, at).is_ok() {
                     return Ok(());
                 }
             }
@@ -199,6 +203,7 @@ fn validate_type(
     node: &UirNode,
     path: &str,
     depth: usize,
+    at: u32,
 ) -> Result<(), ShapeError> {
     if depth > MAX_DEPTH {
         return Err(ShapeError::TooDeep {
@@ -219,18 +224,25 @@ fn validate_type(
         }
         TypeRef::Named(name) => {
             let schema = registry
-                .latest(name)
+                .at_or_before(name, at)
                 .ok_or(ShapeError::UnknownType { name })?;
             validate_schema(registry, schema, node, path, depth + 1)
         }
         TypeRef::Option(inner) => match node {
             UirNode::Null => Ok(()),
-            other => validate_type(registry, inner, other, path, depth + 1),
+            other => validate_type(registry, inner, other, path, depth + 1, at),
         },
         TypeRef::Array(inner) => match node {
             UirNode::Seq(items) => {
                 for (i, item) in items.iter().enumerate() {
-                    validate_type(registry, inner, item, &format!("{path}[{i}]"), depth + 1)?;
+                    validate_type(
+                        registry,
+                        inner,
+                        item,
+                        &format!("{path}[{i}]"),
+                        depth + 1,
+                        at,
+                    )?;
                 }
                 Ok(())
             }
@@ -243,7 +255,7 @@ fn validate_type(
         TypeRef::Map(inner) => match node {
             UirNode::Map(entries) => {
                 for (k, v) in entries {
-                    validate_type(registry, inner, v, &child(path, k), depth + 1)?;
+                    validate_type(registry, inner, v, &child(path, k), depth + 1, at)?;
                 }
                 Ok(())
             }

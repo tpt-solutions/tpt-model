@@ -14,12 +14,13 @@ Most changes need no code:
 | New field with a `default` or `Option` type | Automatic |
 | Renamed field (with `rename = "old"`) | Automatic |
 | Widening type change (`i64` to `f64`, integer to a wider integer) | Automatic |
-| Field removed and its data is not needed | Not allowed: put `migrate` on it and write a migration |
+| Field removed and its data is not needed | Migration that drops the key (`node.remove("field")`) |
 | Field removed and its data is needed elsewhere | Migration |
 | Narrowing or incompatible type change | Migration |
 | Value derived from several fields | Migration |
 
-The derive refuses to compile a `removed_in` without a `migrate`, so you cannot forget.
+The derive refuses to compile a `removed_in` without a `migrate`, so you cannot forget. Even when
+the data is not needed, the removal is explicit: the migration says it is being dropped.
 
 ## Step by step
 

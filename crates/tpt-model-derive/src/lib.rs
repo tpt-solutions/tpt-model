@@ -166,6 +166,10 @@ fn type_ref(ty: &Type) -> syn::Result<TokenStream2> {
                 "i8" | "i16" | "i32" | "i64" | "isize" => prim(quote!(I64)),
                 "u8" | "u16" | "u32" | "u64" | "usize" => prim(quote!(U64)),
                 "f32" | "f64" => prim(quote!(F64)),
+                "u128" | "i128" => return Err(syn::Error::new(
+                    ty.span(),
+                    "128-bit integers are not supported by tpt-model; use u64, i64 or a byte array",
+                )),
                 "String" | "str" => prim(quote!(String)),
                 "EntityId" | "UuidV7" => prim(quote!(Uuid)),
                 "Option" => {
@@ -199,6 +203,14 @@ fn type_ref(ty: &Type) -> syn::Result<TokenStream2> {
                 }
             })
         }
+        Type::Array(_) => Err(syn::Error::new(
+            ty.span(),
+            "fixed-size arrays are not supported by tpt-model; use Vec<T>",
+        )),
+        Type::Tuple(_) => Err(syn::Error::new(
+            ty.span(),
+            "tuples are not supported by tpt-model; use a named struct",
+        )),
         _ => Err(syn::Error::new(
             ty.span(),
             "unsupported field type for tpt-model",

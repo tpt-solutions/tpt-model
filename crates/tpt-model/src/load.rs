@@ -13,6 +13,7 @@ use crate::evolve::{self, MigrationError, Migrations};
 use crate::hash::SchemaId;
 use crate::ir_serde::{self, SerdeError};
 use crate::registry::Registry;
+use crate::shape::{self, ShapeError};
 use crate::Model;
 use alloc::vec::Vec;
 use core::fmt;
@@ -37,6 +38,12 @@ pub enum LoadError {
         schema: u32,
     },
     Validation(ValidationError),
+    /// The stored tree does not match the schema version it was written with.
+    SourceShape {
+        name: &'static str,
+        version: u32,
+        error: ShapeError,
+    },
     Decode(UirError),
     Migration(MigrationError),
     Hydrate(SerdeError),
@@ -55,6 +62,14 @@ impl fmt::Display for LoadError {
                 write!(f, "envelope says v{envelope} but its schema is v{schema}")
             }
             LoadError::Validation(e) => write!(f, "{e}"),
+            LoadError::SourceShape {
+                name,
+                version,
+                error,
+            } => write!(
+                f,
+                "{name} v{version}: stored data does not match its schema: {error}"
+            ),
             LoadError::Decode(e) => write!(f, "{e}"),
             LoadError::Migration(e) => write!(f, "{e}"),
             LoadError::Hydrate(e) => write!(f, "hydration failed: {e}"),
@@ -134,6 +149,14 @@ impl<'a, D: Digest, V: Validator> Loader<'a, D, V> {
             )
             .map_err(LoadError::Validation)?;
         let node = decode(&env.payload).map_err(LoadError::Decode)?;
+        // Check the stored tree against its own version before any step touches it.
+        shape::validate_node(self.registry, source, &node).map_err(|error| {
+            LoadError::SourceShape {
+                name: source.name,
+                version: source.version,
+                error,
+            }
+        })?;
 
         let node = evolve::migrate(
             self.registry,

@@ -17,6 +17,9 @@ use core::fmt;
 pub const MAX_DEPTH: usize = 64;
 /// Maximum length of any string, byte string, sequence or map accepted by [`decode`].
 pub const MAX_LEN: usize = 16 * 1024 * 1024;
+/// Largest up-front allocation for a sequence or map. Larger collections still decode;
+/// their storage grows as the elements arrive, so a short input cannot reserve much memory.
+const PREALLOC_LIMIT: usize = 1024;
 
 /// A node of the intermediate representation tree.
 ///
@@ -269,7 +272,7 @@ impl<'a> Reader<'a> {
                 if n > self.bytes.len() - self.pos {
                     return Err(UirError::BadLength { offset: at });
                 }
-                let mut items = Vec::with_capacity(n);
+                let mut items = Vec::with_capacity(n.min(PREALLOC_LIMIT));
                 for _ in 0..n {
                     items.push(self.node(depth + 1)?);
                 }
@@ -281,7 +284,7 @@ impl<'a> Reader<'a> {
                 if n.saturating_mul(5) > self.bytes.len() - self.pos {
                     return Err(UirError::BadLength { offset: at });
                 }
-                let mut entries = Vec::with_capacity(n);
+                let mut entries = Vec::with_capacity(n.min(PREALLOC_LIMIT));
                 for _ in 0..n {
                     let key = self.string()?;
                     let value = self.node(depth + 1)?;
@@ -328,6 +331,19 @@ mod tests {
     #[test]
     fn round_trip() {
         assert_eq!(decode(&encode(&sample())).unwrap(), sample());
+    }
+
+    #[test]
+    fn collections_larger_than_the_preallocation_limit_round_trip() {
+        let n = PREALLOC_LIMIT * 4;
+        let seq = UirNode::Seq(vec![UirNode::Null; n]);
+        assert_eq!(decode(&encode(&seq)).unwrap(), seq);
+        let map = UirNode::Map(
+            (0..n)
+                .map(|i| (alloc::format!("k{i}"), UirNode::UInt(i as u64)))
+                .collect(),
+        );
+        assert_eq!(decode(&encode(&map)).unwrap(), map);
     }
 
     #[test]

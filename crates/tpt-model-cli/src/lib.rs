@@ -13,6 +13,9 @@
 //! Only top-level items (including those in inline modules) are removable. Items are removed by
 //! line span, so attributes and doc comments on a removed item go with it.
 
+pub mod driver;
+pub mod inspect;
+
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use std::collections::{BTreeMap, BTreeSet};
@@ -78,6 +81,13 @@ pub enum Refusal {
         file: PathBuf,
         line: usize,
     },
+    /// A removal deletes whole lines, and a kept item shares one of them.
+    SharesLines {
+        target: String,
+        by: String,
+        file: PathBuf,
+        line: usize,
+    },
 }
 
 impl fmt::Display for Refusal {
@@ -90,6 +100,16 @@ impl fmt::Display for Refusal {
             Refusal::StillReferenced { target, by, file, line } => write!(
                 f,
                 "refusing: `{target}` would be deleted but is still used by {by} at {}:{line}",
+                file.display()
+            ),
+            Refusal::SharesLines {
+                target,
+                by,
+                file,
+                line,
+            } => write!(
+                f,
+                "refusing: removing `{target}` deletes whole lines, and {by} shares line {line} of {}",
                 file.display()
             ),
         }
@@ -157,8 +177,39 @@ impl Plan {
         out
     }
 
-    /// Unified-diff patch that deletes the planned lines, one hunk per removal.
+    /// The plan as one line of JSON:
+    /// `{"min_supported":N,"removals":[{"what","file","start","end"}],"kept":[],"warnings":[]}`.
+    pub fn to_json(&self) -> String {
+        let removals: Vec<String> = self
+            .removals
+            .iter()
+            .map(|r| {
+                format!(
+                    "{{\"what\":{},\"file\":{},\"start\":{},\"end\":{}}}",
+                    json_str(&r.what),
+                    json_str(&r.file.display().to_string().replace('\\', "/")),
+                    r.start,
+                    r.end
+                )
+            })
+            .collect();
+        let kept: Vec<String> = self.kept.iter().map(|k| json_str(k)).collect();
+        let warnings: Vec<String> = self.warnings.iter().map(|w| json_str(w)).collect();
+        format!(
+            "{{\"min_supported\":{},\"removals\":[{}],\"kept\":[{}],\"warnings\":[{}]}}\n",
+            self.min_supported,
+            removals.join(","),
+            kept.join(","),
+            warnings.join(",")
+        )
+    }
+
+    /// Unified-diff patch that deletes the planned lines, with three lines of context.
+    ///
+    /// Removals whose context overlaps share one hunk, as `diff -U3` would produce. Hunks
+    /// without context are not used, because `git apply` anchors those at the top of the file.
     pub fn patch(&self, files: &[SourceFile]) -> String {
+        const CONTEXT: usize = 3;
         let mut out = String::new();
         let mut by_file: BTreeMap<&PathBuf, Vec<&Removal>> = BTreeMap::new();
         for r in &self.removals {
@@ -172,23 +223,49 @@ impl Plan {
                 .find(|f| &f.path == path)
                 .map(|f| f.text.as_str())
                 .unwrap_or("");
-            let lines: Vec<&str> = text.lines().collect();
+            // Keep each line's terminator so CRLF files produce matching lines.
+            let lines: Vec<&str> = text.split_inclusive('\n').collect();
+            // One flag per 1-based line number.
+            let mut removed = vec![false; lines.len() + 1];
+            for r in &removals {
+                for flag in &mut removed[r.start..=r.end] {
+                    *flag = true;
+                }
+            }
+
+            // Old-side line ranges (1-based, inclusive) that make up the hunks.
+            let mut hunks: Vec<(usize, usize)> = Vec::new();
+            for r in &removals {
+                let lo = r.start.saturating_sub(CONTEXT).max(1);
+                let hi = (r.end + CONTEXT).min(lines.len());
+                match hunks.last_mut() {
+                    Some(last) if lo <= last.1 + 1 => last.1 = last.1.max(hi),
+                    _ => hunks.push((lo, hi)),
+                }
+            }
+
             let _ = writeln!(out, "--- a/{display}");
             let _ = writeln!(out, "+++ b/{display}");
-            let mut removed_before = 0usize;
-            for r in removals {
-                let len = r.end - r.start + 1;
-                let _ = writeln!(
-                    out,
-                    "@@ -{},{} +{},0 @@",
-                    r.start,
-                    len,
-                    r.start - removed_before
-                );
-                for line in &lines[r.start - 1..r.end] {
-                    let _ = writeln!(out, "-{line}");
+            for (lo, hi) in hunks {
+                let old_len = hi - lo + 1;
+                let removed_here = (lo..=hi).filter(|&l| removed[l]).count();
+                let new_len = old_len - removed_here;
+                let removed_before = (1..lo).filter(|&l| removed[l]).count();
+                let mut new_start = lo - removed_before;
+                if new_len == 0 {
+                    // With no lines on the new side, the header names the line before.
+                    new_start -= 1;
                 }
-                removed_before += len;
+                let _ = writeln!(out, "@@ -{lo},{old_len} +{new_start},{new_len} @@");
+                for l in lo..=hi {
+                    let line = lines[l - 1];
+                    let marker = if removed[l] { '-' } else { ' ' };
+                    let content = line.strip_suffix('\n').unwrap_or(line);
+                    let _ = writeln!(out, "{marker}{content}");
+                    if !line.ends_with('\n') {
+                        out.push_str("\\ No newline at end of file\n");
+                    }
+                }
             }
         }
         out
@@ -201,22 +278,23 @@ pub fn scan(files: &[SourceFile]) -> Result<Scan, String> {
     for file in files {
         let parsed =
             syn::parse_file(&file.text).map_err(|e| format!("{}: {e}", file.path.display()))?;
-        collect(&parsed.items, &file.path, &mut scan);
+        collect(&parsed.items, &file.path, &mut scan)?;
     }
     Ok(scan)
 }
 
-fn collect(items: &[Item], file: &PathBuf, scan: &mut Scan) {
+fn collect(items: &[Item], file: &PathBuf, scan: &mut Scan) -> Result<(), String> {
     for item in items {
         if let Item::Mod(m) = item {
             // Inline modules are transparent: their items are the units we track.
             if let Some((_, inner)) = &m.content {
-                collect(inner, file, scan);
+                collect(inner, file, scan)?;
             }
             continue;
         }
         let span = item.span();
-        let (label, declares, model, migration) = describe(item);
+        let (label, declares, model, migration) =
+            describe(item).map_err(|e| format!("{}: {e}", file.display()))?;
         let mut idents = BTreeSet::new();
         idents_into(item.to_token_stream(), &mut idents);
         if let Some(own) = &declares {
@@ -234,34 +312,39 @@ fn collect(items: &[Item], file: &PathBuf, scan: &mut Scan) {
             migration,
         });
     }
+    Ok(())
 }
 
 type Described = (String, Option<String>, Option<Model>, Option<Migration>);
 
-fn describe(item: &Item) -> Described {
-    match item {
+fn describe(item: &Item) -> Result<Described, String> {
+    let described = match item {
         Item::Struct(s) => {
             let ident = s.ident.to_string();
-            let model = has_derive(&s.attrs, "Model").then(|| {
-                let (name, version) = tpt_version(&s.attrs, &ident);
-                Model {
+            let model = if has_derive(&s.attrs, "Model")? {
+                let (name, version) = tpt_version(&s.attrs, &ident)?;
+                Some(Model {
                     ident: ident.clone(),
                     name,
                     version,
-                }
-            });
+                })
+            } else {
+                None
+            };
             (format!("struct {ident}"), Some(ident), model, None)
         }
         Item::Enum(e) => {
             let ident = e.ident.to_string();
-            let model = has_derive(&e.attrs, "Model").then(|| {
-                let (name, version) = tpt_version(&e.attrs, &ident);
-                Model {
+            let model = if has_derive(&e.attrs, "Model")? {
+                let (name, version) = tpt_version(&e.attrs, &ident)?;
+                Some(Model {
                     ident: ident.clone(),
                     name,
                     version,
-                }
-            });
+                })
+            } else {
+                None
+            };
             (format!("enum {ident}"), Some(ident), model, None)
         }
         Item::Impl(i) if is_migration_impl(i) => {
@@ -282,7 +365,8 @@ fn describe(item: &Item) -> Described {
         Item::Impl(i) => (format!("impl {}", type_name(&i.self_ty)), None, None, None),
         Item::Use(_) => ("use".to_string(), None, None, None),
         _ => ("item".to_string(), None, None, None),
-    }
+    };
+    Ok(described)
 }
 
 /// Analyses a scan for a given minimum supported version.
@@ -314,7 +398,7 @@ pub fn analyze(scan: &Scan, min: u32) -> Result<Plan, Refusal> {
         ..Plan::default()
     };
     let mut doomed: BTreeSet<String> = BTreeSet::new();
-    let mut removed_spans: BTreeSet<(PathBuf, usize)> = BTreeSet::new();
+    let mut removed_spans: BTreeSet<(PathBuf, usize, String)> = BTreeSet::new();
 
     for s in &scan.items {
         if let Some(m) = &s.model {
@@ -379,7 +463,9 @@ pub fn analyze(scan: &Scan, min: u32) -> Result<Plan, Refusal> {
             .iter()
             .find(|s| s.declares.as_deref() == Some(marker.as_str()))
         {
-            if decl.model.is_none() && !removed_spans.contains(&(decl.file.clone(), decl.start)) {
+            if decl.model.is_none()
+                && !removed_spans.contains(&(decl.file.clone(), decl.start, decl.label.clone()))
+            {
                 remove(
                     &mut plan,
                     &mut doomed,
@@ -394,7 +480,7 @@ pub fn analyze(scan: &Scan, min: u32) -> Result<Plan, Refusal> {
 
     // Anything that stays must not mention anything that goes.
     for s in &scan.items {
-        if removed_spans.contains(&(s.file.clone(), s.start)) {
+        if removed_spans.contains(&(s.file.clone(), s.start, s.label.clone())) {
             continue;
         }
         if let Some(target) = s.idents.iter().find(|i| doomed.contains(i.as_str())) {
@@ -404,6 +490,25 @@ pub fn analyze(scan: &Scan, min: u32) -> Result<Plan, Refusal> {
                 file: s.file.clone(),
                 line: s.start,
             });
+        }
+    }
+
+    // Removal works on whole lines. A kept item on a removed line would be deleted with it.
+    for r in &plan.removals {
+        for s in &scan.items {
+            if removed_spans.contains(&(s.file.clone(), s.start, s.label.clone()))
+                || s.file != r.file
+            {
+                continue;
+            }
+            if s.start <= r.end && r.start <= s.end {
+                return Err(Refusal::SharesLines {
+                    target: r.what.clone(),
+                    by: s.label.clone(),
+                    file: s.file.clone(),
+                    line: s.start,
+                });
+            }
         }
     }
 
@@ -417,7 +522,8 @@ pub fn apply(plan: &Plan, files: &[SourceFile]) -> Vec<SourceFile> {
     files
         .iter()
         .map(|f| {
-            let mut lines: Vec<&str> = f.text.lines().collect();
+            // Lines keep their own terminators, so CRLF and a missing final newline survive.
+            let mut lines: Vec<&str> = f.text.split_inclusive('\n').collect();
             let mut ranges: Vec<(usize, usize)> = plan
                 .removals
                 .iter()
@@ -428,10 +534,7 @@ pub fn apply(plan: &Plan, files: &[SourceFile]) -> Vec<SourceFile> {
             for (start, end) in ranges.into_iter().rev() {
                 lines.drain(start - 1..end);
             }
-            let mut text = lines.join("\n");
-            if f.text.ends_with('\n') {
-                text.push('\n');
-            }
+            let text = lines.concat();
             SourceFile {
                 path: f.path.clone(),
                 text,
@@ -442,27 +545,49 @@ pub fn apply(plan: &Plan, files: &[SourceFile]) -> Vec<SourceFile> {
 
 // ---- helpers ------------------------------------------------------------------
 
-fn has_derive(attrs: &[Attribute], derive: &str) -> bool {
-    attrs.iter().any(|attr| {
-        if !attr.path().is_ident("derive") {
-            return false;
+/// A JSON string literal with the escapes JSON requires.
+fn json_str(s: &str) -> String {
+    let mut out = String::from("\"");
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
         }
-        attr.parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
-            .map(|paths| {
-                paths
-                    .iter()
-                    .any(|p| p.segments.last().is_some_and(|s| s.ident == derive))
-            })
-            .unwrap_or(false)
-    })
+    }
+    out.push('"');
+    out
+}
+
+/// Whether `#[derive(...)]` names `derive`. A malformed derive list is an error, not `false`.
+fn has_derive(attrs: &[Attribute], derive: &str) -> Result<bool, String> {
+    for attr in attrs.iter().filter(|a| a.path().is_ident("derive")) {
+        let paths = attr
+            .parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
+            .map_err(|e| format!("malformed #[derive] attribute: {e}"))?;
+        if paths
+            .iter()
+            .any(|p| p.segments.last().is_some_and(|s| s.ident == derive))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Reads `#[tpt(name = "...", version = N)]`, with the same defaults as the derive.
-fn tpt_version(attrs: &[Attribute], ident: &str) -> (String, u32) {
+/// A malformed `#[tpt]` attribute is an error, because the version it sets would be lost.
+fn tpt_version(attrs: &[Attribute], ident: &str) -> Result<(String, u32), String> {
     let mut name = None;
     let mut version = 1u32;
     for attr in attrs.iter().filter(|a| a.path().is_ident("tpt")) {
-        let _ = attr.parse_nested_meta(|meta| {
+        attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("version") {
                 let lit: syn::LitInt = meta.value()?.parse()?;
                 version = lit.base10_parse()?;
@@ -470,12 +595,13 @@ fn tpt_version(attrs: &[Attribute], ident: &str) -> (String, u32) {
                 let lit: syn::LitStr = meta.value()?.parse()?;
                 name = Some(lit.value());
             } else {
-                let _ = meta.value().and_then(|v| v.parse::<syn::Expr>());
+                meta.value()?.parse::<syn::Expr>()?;
             }
             Ok(())
-        });
+        })
+        .map_err(|e| format!("malformed #[tpt] attribute on `{ident}`: {e}"))?;
     }
-    (name.unwrap_or_else(|| default_name(ident)), version)
+    Ok((name.unwrap_or_else(|| default_name(ident)), version))
 }
 
 fn default_name(ident: &str) -> String {
@@ -529,17 +655,111 @@ fn idents_into(tokens: TokenStream, out: &mut BTreeSet<String>) {
 fn remove(
     plan: &mut Plan,
     doomed: &mut BTreeSet<String>,
-    removed_spans: &mut BTreeSet<(PathBuf, usize)>,
+    removed_spans: &mut BTreeSet<(PathBuf, usize, String)>,
     what: String,
     span: &Span,
     ident: &str,
 ) {
     doomed.insert(ident.to_string());
-    removed_spans.insert((span.file.clone(), span.start));
+    removed_spans.insert((span.file.clone(), span.start, span.label.clone()));
     plan.removals.push(Removal {
         what,
         file: span.file.clone(),
         start: span.start,
         end: span.end,
     });
+}
+
+/// Writes Rust source for the next version of the model `name`: a copy of its latest version
+/// with the version and type name bumped, and a migration stub from the latest version to the
+/// new one. The text is printed for pasting; nothing is written to disk.
+pub fn scaffold_migration(files: &[SourceFile], name: &str) -> Result<String, String> {
+    let scanned = scan(files)?;
+    let (span, model) = scanned
+        .items
+        .iter()
+        .filter_map(|s| s.model.as_ref().filter(|m| m.name == name).map(|m| (s, m)))
+        .max_by_key(|(_, m)| m.version)
+        .ok_or_else(|| format!("no versioned model named `{name}` in the scanned sources"))?;
+    let file = files
+        .iter()
+        .find(|f| f.path == span.file)
+        .ok_or_else(|| format!("{} is not among the scanned sources", span.file.display()))?;
+    let lines: Vec<&str> = file.text.lines().collect();
+    let body = lines[span.start - 1..span.end].join("\n");
+
+    let old = model.version;
+    let new = old + 1;
+    let old_ident = model.ident.clone();
+    let new_ident = bump_ident(&old_ident, old, new);
+    let body = replace_word(&body, &old_ident, &new_ident);
+    let body = replace_version(&body, old, new)
+        .ok_or_else(|| format!("could not find `version = {old}` on {old_ident}"))?;
+    let marker = format!("{name}V{old}ToV{new}");
+
+    Ok(format!(
+        "// Version {new} of {name}, copied from {old_ident} (v{old}). Edit the fields.\n\
+         // Fields that v{old} lacks need `default` or an Option type. Fields removed in v{new}\n\
+         // belong on the v{old} struct as `removed_in = {new}` with a `migrate` function.\n\
+         // Imports: tpt_model::{{Migration, Model, UirNode}}, tpt_model::evolve::{{MigrationContext, MigrationError}}\n\
+         \n\
+         {body}\n\
+         \n\
+         // Migration from v{old} to v{new}. Automatic steps already cover defaults and renames;\n\
+         // write only what they cannot.\n\
+         pub struct {marker};\n\
+         \n\
+         impl Migration for {marker} {{\n    \
+         type From = {old_ident};\n    \
+         type To = {new_ident};\n\
+         \n    \
+         fn migrate(old: &UirNode, _ctx: &MigrationContext) -> Result<UirNode, MigrationError> {{\n        \
+         Ok(old.clone())\n    \
+         }}\n\
+         }}\n"
+    ))
+}
+
+/// `CadPartV2` at version 2 becomes `CadPartV3`. Identifiers without the version suffix gain one.
+fn bump_ident(ident: &str, old: u32, new: u32) -> String {
+    match ident.strip_suffix(&format!("V{old}")) {
+        Some(stem) if !stem.is_empty() => format!("{stem}V{new}"),
+        _ => format!("{ident}V{new}"),
+    }
+}
+
+/// Replaces whole-identifier occurrences of `from`.
+fn replace_word(text: &str, from: &str, to: &str) -> String {
+    let is_ident = |c: char| c.is_alphanumeric() || c == '_';
+    let mut out = String::with_capacity(text.len());
+    let mut last = 0;
+    for (pos, _) in text.match_indices(from) {
+        let before = text[..pos].chars().next_back();
+        let after = text[pos + from.len()..].chars().next();
+        if before.is_some_and(is_ident) || after.is_some_and(is_ident) {
+            continue;
+        }
+        out.push_str(&text[last..pos]);
+        out.push_str(to);
+        last = pos + from.len();
+    }
+    out.push_str(&text[last..]);
+    out
+}
+
+/// Changes the first `version = {old}` to `version = {new}`. `None` if there is none.
+fn replace_version(text: &str, old: u32, new: u32) -> Option<String> {
+    let needle = format!("version = {old}");
+    for (pos, _) in text.match_indices(&needle) {
+        let after = text[pos + needle.len()..].chars().next();
+        if after.is_some_and(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        return Some(format!(
+            "{}version = {new}{}",
+            &text[..pos],
+            &text[pos + needle.len()..]
+        ));
+    }
+    None
 }

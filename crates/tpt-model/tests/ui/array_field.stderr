@@ -1,0 +1,5 @@
+error: fixed-size arrays are not supported by tpt-model; use Vec<T>
+ --> tests/ui/array_field.rs:5:12
+  |
+5 |     bytes: [u8; 4],
+  |            ^^^^^^^

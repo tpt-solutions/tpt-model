@@ -51,12 +51,15 @@ impl fmt::Display for RegistryError {
 #[derive(Debug, Default, Clone)]
 pub struct Registry {
     schemas: BTreeMap<SchemaId, &'static Schema>,
+    /// Index from logical name to version to schema, kept in step with `schemas`.
+    by_name: BTreeMap<&'static str, BTreeMap<u32, &'static Schema>>,
 }
 
 impl Registry {
     pub const fn new() -> Self {
         Registry {
             schemas: BTreeMap::new(),
+            by_name: BTreeMap::new(),
         }
     }
 
@@ -79,6 +82,10 @@ impl Registry {
             return Ok(id);
         }
         self.schemas.insert(id, schema);
+        self.by_name
+            .entry(schema.name)
+            .or_default()
+            .insert(schema.version, schema);
         Ok(id)
     }
 
@@ -87,28 +94,32 @@ impl Registry {
     }
 
     pub fn by_name_version(&self, name: &str, version: u32) -> Option<&'static Schema> {
-        self.schemas
-            .values()
-            .copied()
-            .find(|s| s.name == name && s.version == version)
+        self.by_name.get(name)?.get(&version).copied()
     }
 
     /// Versions registered for `name`, ascending.
     pub fn versions(&self, name: &str) -> Vec<u32> {
-        let mut out: Vec<u32> = self
-            .schemas
-            .values()
-            .filter(|s| s.name == name)
-            .map(|s| s.version)
-            .collect();
-        out.sort_unstable();
-        out
+        self.by_name
+            .get(name)
+            .map(|versions| versions.keys().copied().collect())
+            .unwrap_or_default()
     }
 
     /// Highest registered version for `name`.
     pub fn latest(&self, name: &str) -> Option<&'static Schema> {
-        let v = *self.versions(name).last()?;
-        self.by_name_version(name, v)
+        self.by_name.get(name)?.values().next_back().copied()
+    }
+
+    /// Highest registered version of `name` that is at most `version`.
+    ///
+    /// A type that did not change between versions need not be registered again, so this
+    /// is the schema that applied when data was written at `version`.
+    pub fn at_or_before(&self, name: &str, version: u32) -> Option<&'static Schema> {
+        self.by_name
+            .get(name)?
+            .range(..=version)
+            .next_back()
+            .map(|(_, schema)| *schema)
     }
 
     pub fn len(&self) -> usize {

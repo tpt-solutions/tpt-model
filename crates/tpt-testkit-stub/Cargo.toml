@@ -3,6 +3,7 @@ name = "tpt-testkit-stub"
 description = "Local stand-in for tpt-testkit: golden-file and matrix helpers for tests"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true

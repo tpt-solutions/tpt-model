@@ -1,0 +1,6 @@
+[template]
+cargo_generate_version = ">=0.18.0"
+ignore = ["target"]
+
+[hooks]
+# Keeps the template README out of the generated crate's docs until the author has read it.

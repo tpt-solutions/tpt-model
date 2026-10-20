@@ -31,6 +31,39 @@ impl Digest for Blake3 {
     }
 }
 
+/// Keyed BLAKE3 (pure-Rust backend).
+///
+/// Without the key nobody can produce a matching hash, so this detects deliberate tampering
+/// as well as corruption. [`Blake3`] only detects corruption: anyone who can rewrite a payload
+/// can also recompute its hash.
+#[derive(Clone)]
+pub struct KeyedBlake3 {
+    key: [u8; 32],
+}
+
+impl KeyedBlake3 {
+    pub const fn new(key: [u8; 32]) -> Self {
+        KeyedBlake3 { key }
+    }
+}
+
+impl core::fmt::Debug for KeyedBlake3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // The key never appears in debug output or logs.
+        f.write_str("KeyedBlake3(<key redacted>)")
+    }
+}
+
+impl Digest for KeyedBlake3 {
+    fn digest(&self, parts: &[&[u8]]) -> Hash32 {
+        let mut hasher = blake3::Hasher::new_keyed(&self.key);
+        for part in parts {
+            hasher.update(part);
+        }
+        *hasher.finalize().as_bytes()
+    }
+}
+
 /// Compares two digests without early exit on the first differing byte.
 pub fn ct_eq(a: &Hash32, b: &Hash32) -> bool {
     let mut diff = 0u8;

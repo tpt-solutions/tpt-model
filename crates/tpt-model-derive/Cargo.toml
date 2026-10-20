@@ -3,6 +3,7 @@ name = "tpt-model-derive"
 description = "Derive macro for tpt-model: #[derive(Model)] with version, since, removed_in, rename, default and migrate attributes"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true

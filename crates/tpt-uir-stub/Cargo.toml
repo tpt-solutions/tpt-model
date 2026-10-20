@@ -3,6 +3,7 @@ name = "tpt-uir-stub"
 description = "Local stand-in for tpt-uir: the IR tree node type and a canonical byte encoding"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true

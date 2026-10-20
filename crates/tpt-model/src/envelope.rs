@@ -61,6 +61,9 @@ impl fmt::Display for EnvelopeError {
     }
 }
 
+/// The name the design spec uses for [`Envelope`].
+pub type ModelEnvelope = Envelope;
+
 /// A sealed entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Envelope {

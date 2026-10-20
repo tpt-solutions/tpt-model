@@ -105,3 +105,19 @@ A change to a struct's shape changes its `SchemaId`. If the old shape is no long
 data written under it fails with `UnknownSchema` instead of being misread. Bump the version
 whenever the shape changes. The golden tests in `crates/tpt-model/tests/golden.rs` pin
 the ids, so an accidental change fails the build.
+
+## What changes a `SchemaId`
+
+The id is a hash over the canonical encoding of a schema. The encoding includes:
+
+- the logical name and version;
+- every field and variant: name, type, `since`, `removed_in`, and the `rename` history;
+- `default` and `migrate` strings, and `intent` and `capability` on access-controlled fields;
+- constraints (`min`, `max`).
+
+Because `default`, `migrate` and `capability` are part of the encoding, renaming a migration
+function, changing a default expression, or changing a capability name changes the id. Stored
+data written under the old id then fails with `UnknownSchema`. Such changes are safe only if
+you do not need to read data written before them, or if you register the old schema
+unchanged. Changing a doc comment, a `name` of a Rust type that is not the logical name, or
+the order of fields does not change the id.

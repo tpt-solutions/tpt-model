@@ -27,4 +27,10 @@ path = "fuzz_targets/envelope_load.rs"
 test = false
 doc = false
 
+
+[[bin]]
+name = "envelope_valid"
+path = "fuzz_targets/envelope_valid.rs"
+test = false
+doc = false
 [workspace]

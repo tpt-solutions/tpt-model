@@ -36,8 +36,10 @@ impl fmt::Display for SerdeError {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for SerdeError {}
+// `core::error::Error` is the trait `std::error::Error` re-exports (Rust 1.81+). Implementing it
+// unconditionally keeps `SerdeError` usable with serde's `std` feature, which dev-dependencies
+// enable, while the crate stays `no_std`.
+impl core::error::Error for SerdeError {}
 
 impl ser::Error for SerdeError {
     fn custom<T: fmt::Display>(msg: T) -> Self {

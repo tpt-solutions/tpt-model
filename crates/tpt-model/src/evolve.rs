@@ -566,11 +566,16 @@ pub fn complete_after_migration(
     for (key, value) in entries {
         if to_fields.iter().any(|f| f.name == key) {
             kept.push((key.clone(), value.clone()));
-        } else if from_fields
-            .iter()
-            .any(|f| f.name == key && f.removed_in == Some(to.version))
-        {
-            // Removed in the target: the migration has consumed it, so drop it here.
+        } else if to_fields.iter().any(|f| f.renames.contains(&key.as_str())) {
+            // Left under an old name: `fill_fields` moves it to the renamed field.
+            kept.push((key.clone(), value.clone()));
+        } else if from_fields.iter().any(|f| {
+            f.name == key
+                && f.removed_in
+                    .is_some_and(|r| r > from.version && r <= to.version)
+        }) {
+            // Removed at or before the target (possibly mid-skip): the migration has
+            // consumed it, so drop it here.
         } else {
             return Err(MigrationError::UnknownField {
                 name,
@@ -656,6 +661,80 @@ fn check_compatible(
             found: shape::kind_of(value),
         }),
         _ => Ok(()),
+    }
+}
+
+/// Explains, step by step and field by field, how `migrate` would move data from `from` to `to`.
+///
+/// Automatic steps list the fate of every target field (kept, renamed, defaulted, `null`) and of
+/// every source field that does not survive. Registered migrations are listed by name only,
+/// because their behaviour is in user code. Nothing is run.
+pub fn explain(
+    registry: &Registry,
+    migrations: &Migrations,
+    name: &'static str,
+    from: u32,
+    to: u32,
+    min_supported: Option<u32>,
+) -> Result<String, MigrationError> {
+    let steps = plan(registry, migrations, name, from, to, min_supported)?;
+    if steps.is_empty() {
+        return Ok(format!("{name}: v{from} is already the target; no steps\n"));
+    }
+    let mut out = String::new();
+    for (i, step) in steps.iter().enumerate() {
+        match step {
+            Step::Custom(m) => out.push_str(&format!(
+                "{}. {name} v{} -> v{}: registered migration\n",
+                i + 1,
+                m.from.version,
+                m.to.version
+            )),
+            Step::Auto { from, to } => {
+                out.push_str(&format!(
+                    "{}. {name} v{} -> v{}: automatic\n",
+                    i + 1,
+                    from.version,
+                    to.version
+                ));
+                explain_auto(&mut out, from, to);
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn explain_auto(out: &mut String, from: &Schema, to: &Schema) {
+    let (TypeDef::Struct(from_fields), TypeDef::Struct(to_fields)) = (from.def, to.def) else {
+        out.push_str("   enum: variants carry over unchanged\n");
+        return;
+    };
+    for f in to_fields {
+        let line = if from_fields.iter().any(|o| o.name == f.name) {
+            format!("keep {}", f.name)
+        } else if let Some(old) = from_fields.iter().find(|o| f.renames.contains(&o.name)) {
+            format!("rename {} -> {}", old.name, f.name)
+        } else if let Some(expr) = f.default {
+            format!("default {} = {expr}", f.name)
+        } else if matches!(f.ty, TypeRef::Option(_)) {
+            format!("null {}", f.name)
+        } else {
+            format!("error: {} has no value in v{} data", f.name, from.version)
+        };
+        out.push_str(&format!("   {line}\n"));
+    }
+    for f in from_fields {
+        if to_fields
+            .iter()
+            .any(|t| t.name == f.name || t.renames.contains(&f.name))
+        {
+            continue;
+        }
+        let line = match f.migrate {
+            Some(m) => format!("error: {} needs migration `{m}`", f.name),
+            None => format!("drop {}", f.name),
+        };
+        out.push_str(&format!("   {line}\n"));
     }
 }
 

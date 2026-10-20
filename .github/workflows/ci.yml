@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [master]
   pull_request:
 
 env:
@@ -43,10 +42,44 @@ jobs:
         run: cargo test --workspace
       - name: Run end-to-end example
         run: cargo run -p tpt-model --example cad_part
+      - name: Run README quickstart, keyed digest and evolution examples
+        run: |
+          cargo run -p tpt-model --example quickstart
+          cargo run -p tpt-model --example keyed_digest
+          cargo run -p tpt-model --example config_file
+          cargo run -p tpt-model --example save_game
+          cargo run -p tpt-model --example rename_and_split
+          cargo run -p tpt-model --example custom_migration
+      - name: Squash CLI over the demo source
+        run: cargo run -p tpt-model-cli -- squash --min-supported 2 squash_demo
       # Golden files hold byte-exact exports and schema ids. Identical output on every OS
       # is the cross-platform determinism check.
       - name: Golden files unchanged
         run: cargo test -p tpt-model --test golden
+
+  feature-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests with the global registry
+        run: cargo test -p tpt-model --features global-registry
+      - name: Tests without default features (no std)
+        run: cargo test -p tpt-model --no-default-features
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Rustdoc without warnings, default and global-registry features
+        run: |
+          cargo doc --workspace --no-deps
+          cargo doc -p tpt-model --no-deps --features global-registry
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   no-std:
     runs-on: ubuntu-latest
@@ -102,6 +135,7 @@ jobs:
         run: |
           cargo fuzz run --fuzz-dir fuzz uir_decode -- -max_total_time=60
           cargo fuzz run --fuzz-dir fuzz envelope_load -- -max_total_time=60
+          cargo fuzz run --fuzz-dir fuzz envelope_valid -- -max_total_time=60
 
   bench-build:
     runs-on: ubuntu-latest
@@ -110,3 +144,47 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench -p tpt-model --no-run
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.90.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Workspace builds on the declared minimum Rust version
+        run: cargo check --workspace --all-targets
+
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: CHANGELOG has an Unreleased section
+        run: grep -q '^## \[Unreleased\]' CHANGELOG.md
+
+  x86-windows:
+    # 32-bit build and tests, including the golden exports, which pin exact bytes and schema ids.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - name: Core and stub crates as 32-bit binaries
+        run: cargo test --target i686-pc-windows-msvc -p tpt-model -p tpt-uir-stub -p tpt-validex-stub -p tpt-crypto-stub
+
+  coverage:
+    # Report only: the job uploads lcov.info and does not gate merges.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Coverage for the workspace
+        run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: lcov.info

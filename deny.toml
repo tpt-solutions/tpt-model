@@ -12,6 +12,9 @@ targets = [
 ]
 
 [advisories]
+# Vulnerabilities always fail the check. An exception needs an advisory id, a reason and a
+# review date in the comment, for example: ignore = [{ id = "RUSTSEC-0000-0000", reason = "..." }]
+ignore = []
 
 [licenses]
 allow = [
