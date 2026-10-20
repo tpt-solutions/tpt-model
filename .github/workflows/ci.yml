@@ -158,8 +158,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: CHANGELOG has an Unreleased section
-        run: grep -q '^## \[Unreleased\]' CHANGELOG.md
+      - name: Every CHANGELOG has an Unreleased section
+        run: |
+          for f in CHANGELOG.md crates/*/CHANGELOG.md; do
+            grep -q '^## \[Unreleased\]' "$f" || { echo "missing [Unreleased] in $f"; exit 1; }
+          done
+      - name: Every crate has a README and CHANGELOG
+        run: |
+          for d in crates/*/; do
+            for f in README.md CHANGELOG.md; do
+              test -f "${d}${f}" || { echo "missing ${d}${f}"; exit 1; }
+            done
+          done
 
   x86-windows:
     # 32-bit build and tests, including the golden exports, which pin exact bytes and schema ids.

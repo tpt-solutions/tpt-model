@@ -6,7 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["access-control", "capability", "intent", "stub", "no-std"]
+categories = ["no-std"]
+readme = "README.md"
+publish = false
 
 [dependencies]

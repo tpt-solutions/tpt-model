@@ -7,9 +7,9 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-tpt-model = { git = "https://github.com/PhillipC05/tpt-model" }
-tpt-crypto-stub = { git = "https://github.com/PhillipC05/tpt-model", package = "tpt-crypto-stub" }
-tpt-validex-stub = { git = "https://github.com/PhillipC05/tpt-model", package = "tpt-validex-stub" }
+tpt-model = { git = "https://github.com/tpt-solutions/tpt-model" }
+tpt-crypto-stub = { git = "https://github.com/tpt-solutions/tpt-model", package = "tpt-crypto-stub" }
+tpt-validex-stub = { git = "https://github.com/tpt-solutions/tpt-model", package = "tpt-validex-stub" }
 
 [dev-dependencies]
-tpt-testkit-stub = { git = "https://github.com/PhillipC05/tpt-model", package = "tpt-testkit-stub" }
+tpt-testkit-stub = { git = "https://github.com/tpt-solutions/tpt-model", package = "tpt-testkit-stub" }

@@ -6,8 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["testing", "golden-file", "fixtures", "snapshot", "stub"]
+categories = ["development-tools::testing"]
+readme = "README.md"
 publish = false
 
 [dependencies]

@@ -16,10 +16,8 @@ version = "0.1.0"
 rust-version = "1.90"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/PhillipC05/tpt-model"
-authors = ["TPT Contributors"]
-keywords = ["schema", "migration", "evolution", "serde", "no-std"]
-categories = ["data-structures", "no-std", "encoding"]
+repository = "https://github.com/tpt-solutions/tpt-model"
+authors = ["TPT Solutions"]
 
 [workspace.dependencies]
 tpt-model = { path = "crates/tpt-model", version = "0.1.0" }

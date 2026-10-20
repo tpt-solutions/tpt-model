@@ -16,6 +16,6 @@ cargo test                           # checks the code against the snapshot and 
 3. Add a test in `tests/evolution.rs`, using `assert_evolves!` or `Loader::load`.
 4. Regenerate the snapshot with `TPT_UPDATE_SNAPSHOTS=1 cargo test` and review the diff.
 
-The [cookbook](https://github.com/PhillipC05/tpt-model/blob/master/docs/COOKBOOK.md) covers
-the common changes, and the [error FAQ](https://github.com/PhillipC05/tpt-model/blob/master/docs/FAQ.md)
+The [cookbook](https://github.com/tpt-solutions/tpt-model/blob/master/docs/COOKBOOK.md) covers
+the common changes, and the [error FAQ](https://github.com/tpt-solutions/tpt-model/blob/master/docs/FAQ.md)
 explains the messages you may see.
