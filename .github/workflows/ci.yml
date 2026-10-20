@@ -161,7 +161,7 @@ jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Every CHANGELOG has an Unreleased section
         run: |
           for f in CHANGELOG.md crates/*/CHANGELOG.md; do
