@@ -1,46 +1,31 @@
 # Contributing
 
-Thanks for helping. This project is pre-1.0, and changes to the on-disk format (`SchemaId`,
-envelope layout, IR encoding) need extra care. Read [docs/VERSIONING.md](docs/VERSIONING.md)
-before touching them.
+Contributions are made through GitHub issues only. Pull requests are not accepted. Open an
+issue to report a bug, ask a question, or propose a change, and the maintainers will decide
+how it is made.
 
-## Before you open a pull request
+This project is pre-1.0. Changes to the on-disk format (`SchemaId`, envelope layout, IR
+encoding) need extra care. Read [docs/VERSIONING.md](docs/VERSIONING.md) before raising one.
 
-CI runs these. Run them locally first:
+## Reporting a bug
 
-```sh
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cargo test -p tpt-model --test golden       # pinned bytes and exports
-cargo build -p tpt-model --no-default-features --target thumbv7em-none-eabihf
-```
+Include:
 
-The core crate is `no_std` + `alloc`. Do not add `std` imports to `crates/tpt-model/src`
-outside the `#[cfg(feature = "std")]` or `global-registry` modules.
+* The `tpt-model` version or commit, and your Rust version (`rustc --version`).
+* Your operating system and target (for example `x86_64-pc-windows-msvc`).
+* A minimal reproduction: the type definitions, the code that saves or loads, and the error or
+  unexpected output.
+* For a stored-data problem, the output of `tpt-model inspect` on the entity, if you can share it.
 
-## Snapshots
+Do not attach private or sensitive data. For security issues, follow [SECURITY.md](SECURITY.md)
+instead of opening a public issue.
 
-* **Golden files** (`crates/tpt-model/tests/golden/`) hold byte-exact encodings and schema ids.
-  If a change is meant to alter them, refresh with `TPT_UPDATE_GOLDEN=1 cargo test -p tpt-model --test golden`
-  and explain the change in the pull request. An unexpected diff is a bug.
-* **Compile-error snapshots** (`crates/tpt-model/tests/ui/`) are refreshed with
-  `TRYBUILD=overwrite cargo test -p tpt-model --test ui`. Check the new `.stderr` by eye.
+## Proposing a change
 
-## Adding a behaviour
+Describe the problem first, then the change you would like. For changes to the on-disk format,
+say which golden files or `SchemaId` values would change, and why that is acceptable.
 
-1. Write a test that fails without the change. Tests for evolution go in `crates/tpt-model/tests/`.
-2. Keep the change small. Tick the matching item in [TODO.md](TODO.md) and add a line to
-   [CHANGELOG.md](CHANGELOG.md) under *Unreleased*. Breaking changes go under *Changed (breaking)*.
-3. If the change alters what `SchemaId` covers, update the list in
-   [docs/VERSIONING.md](docs/VERSIONING.md).
+## Licence
 
-## Dependencies
-
-The shipped dependency graph must stay pure Rust with no `-sys` crates. `cargo deny check`
-enforces licences, bans and sources. A new dependency needs a reason in the pull request.
-
-## Commits and pull requests
-
-Use short, imperative commit subjects. Describe in the pull request what changed and why, and
-how you tested it.
+By opening an issue you agree that any code or text you post may be used under the project
+licence, [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at the maintainers' option.
