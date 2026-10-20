@@ -893,7 +893,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "syn 2.0.119",
+ "syn 3.0.9",
  "tpt-crypto-stub",
  "tpt-model",
 ]
@@ -904,7 +904,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
 ]
 
 [[package]]
