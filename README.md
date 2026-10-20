@@ -7,6 +7,7 @@ Rust struct, without the application knowing it came from an old file.
 * Pure Rust, no C-FFI in the shipped dependency graph.
 * `no_std` + `alloc` for the core crate (`--no-default-features`).
 * Deterministic: the same input produces the same bytes on every platform.
+* Minimum supported Rust version: 1.90 (checked in CI).
 
 ## Quickstart
 
@@ -115,7 +116,7 @@ cargo run -p tpt-model --example cad_part
 |-------|------|----------|
 | [`tpt-model`](crates/tpt-model) | Schema graph, registry, evolution engine, envelope, load pipeline | yes |
 | [`tpt-model-derive`](crates/tpt-model-derive) | `#[derive(Model)]` | proc macro |
-| [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash` (plan and apply removal of old versions) and `tpt-model inspect` (envelope and tree of a stored entity); also `cargo tpt-model` | std |
+| [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash` (plan and apply removal of old versions), `tpt-model inspect` (envelope and tree of a stored entity) and `tpt-model new-migration` (scaffold the next version); also `cargo tpt-model` | std |
 | `tpt-uir-stub` | Stand-in for `tpt-uir`: IR tree and canonical byte encoding | yes |
 | `tpt-validex-stub` | Stand-in for `tpt-validex`: byte-level validation | yes |
 | `tpt-crypto-stub` | Stand-in for `tpt-crypto`: digest trait, BLAKE3 (pure Rust) | yes |
@@ -124,6 +125,9 @@ cargo run -p tpt-model --example cad_part
 
 The `*-stub` crates are local stand-ins for TPT crates that are not yet available. Swapping in
 the real crates means replacing their trait implementations; the public API of `tpt-model` stays the same.
+
+Each crate has its own README and CHANGELOG. To start a new model crate, use the
+[`cargo-generate` template](templates/model-crate) (`cargo generate --path templates/model-crate`).
 
 ## Load pipeline
 
@@ -147,17 +151,23 @@ cargo clippy --workspace --all-targets
 cargo deny check                             # licences, bans, sources, advisories
 cargo build -p tpt-model --no-default-features --target thumbv7em-none-eabihf
 
-cargo run -p tpt-model --example keyed_digest  # tamper evidence with a keyed digest
-cargo run -p tpt-model --example quickstart
+cargo run -p tpt-model --example quickstart        # the README quickstart, complete
+cargo run -p tpt-model --example keyed_digest      # tamper evidence with a keyed digest
+cargo run -p tpt-model --example config_file       # automatic and registered steps across versions
+cargo run -p tpt-model --example custom_migration  # lossy type change (float to integer)
+cargo run -p tpt-model --example rename_and_split  # one field becomes two
+cargo run -p tpt-model --example save_game         # enum variant evolution
 
 cargo run -p tpt-model-cli -- squash --min-supported 2 --patch squash.diff src/
 cargo run -p tpt-model-cli -- squash --min-supported 2 --json src/   # plan as JSON
 cargo run -p tpt-model-cli -- inspect path/to/entity.bin            # envelope and tree
+cargo run -p tpt-model-cli -- new-migration --name CadPart src/part.rs
 cargo tpt-model --help                                              # after installing the CLI
 ```
 
 Golden files are refreshed with `TPT_UPDATE_GOLDEN=1 cargo test -p tpt-model --test golden`.
 Compile-error snapshots are refreshed with `TRYBUILD=overwrite cargo test -p tpt-model --test ui`.
+Schema snapshots in a generated model crate are refreshed with `TPT_UPDATE_SNAPSHOTS=1 cargo test`.
 
 Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`:
 `cargo fuzz run --fuzz-dir fuzz uir_decode`.
@@ -171,7 +181,7 @@ Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`
 * [Migration author guide](docs/MIGRATION_GUIDE.md)
 * [Contributing](CONTRIBUTING.md) and [security policy](SECURITY.md)
 * [Design spec](spec.txt) and [implementation plan](TODO.md)
-* [Changelog](CHANGELOG.md)
+* [Changelog](CHANGELOG.md), and per-crate changelogs in each `crates/*/CHANGELOG.md`
 
 ## Design notes
 
