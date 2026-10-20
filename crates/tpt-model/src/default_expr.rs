@@ -55,7 +55,7 @@ pub fn eval(expr: &str) -> Result<UirNode, DefaultError> {
     if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
         return unescape(&s[1..s.len() - 1])
             .map(UirNode::Str)
-            .map_err(&fail);
+            .map_err(fail);
     }
 
     if s.contains("::") {

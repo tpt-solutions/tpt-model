@@ -617,7 +617,7 @@ fn default_name(ident: &str) -> String {
 fn is_migration_impl(i: &syn::ItemImpl) -> bool {
     i.trait_
         .as_ref()
-        .is_some_and(|(_, path, _)| path.segments.last().is_some_and(|s| s.ident == "Migration"))
+        .is_some_and(|(path, _)| path.segments.last().is_some_and(|s| s.ident == "Migration"))
 }
 
 fn assoc_type(i: &syn::ItemImpl, wanted: &str) -> Option<String> {

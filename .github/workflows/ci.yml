@@ -119,13 +119,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - run: cargo miri setup
-      - run: cargo miri test -p tpt-model --lib
+      - run: cargo +nightly miri setup
+      - run: cargo +nightly miri test -p tpt-model --lib
         env:
           MIRIFLAGS: -Zmiri-disable-isolation
 
   fuzz-build:
     runs-on: ubuntu-latest
+    # The root rust-toolchain.toml pins stable, which would override the nightly install
+    # below. cargo-fuzz's -Z sanitizer flags need nightly rustc, so force it here.
+    env:
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
