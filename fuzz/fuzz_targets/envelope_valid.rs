@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::{EntityId, Envelope, Migrations, Model, Registry};
 use tpt_validex_stub::BoundsValidator;
 
@@ -19,10 +19,10 @@ fuzz_target!(|data: &[u8]| {
     registry.register::<FuzzV1>().expect("register");
     registry.register::<FuzzV2>().expect("register");
     let migrations = Migrations::new();
-    let loader = tpt_model::Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = tpt_model::Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
 
     let version = u32::from(claimed % 3) + 1;
-    let Ok(envelope) = Envelope::seal(&Blake3, FuzzV1::SCHEMA_ID, version, id, payload.to_vec())
+    let Ok(envelope) = Envelope::seal(&Sha256, FuzzV1::SCHEMA_ID, version, id, payload.to_vec())
     else {
         return;
     };

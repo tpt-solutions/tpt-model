@@ -16,8 +16,8 @@ The project is pre-1.0. Only the latest commit on `master` receives fixes.
 
 ## Scope and known limits
 
-* **Unkeyed `Blake3` detects corruption only.** Anyone who can rewrite stored bytes can also
-  recompute the hash. Use `KeyedBlake3` (in `tpt-crypto-stub`) when data must be protected
+* **Unkeyed `Sha256` detects corruption only.** Anyone who can rewrite stored bytes can also
+  recompute the hash. Use `KeyedSha256` (in `tpt-crypto-stub`) when data must be protected
   against deliberate modification, and keep the key secret.
 * **Field access rules** (`intent`, `capability`) are enforced only where the caller applies
   them, through `tpt_model::access`. The engine does not check on every read.

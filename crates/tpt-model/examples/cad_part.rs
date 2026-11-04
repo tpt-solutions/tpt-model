@@ -6,7 +6,7 @@
 //! Run with `cargo run -p tpt-model --example cad_part`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -80,7 +80,7 @@ fn main() {
 
     // What an old build wrote to disk.
     let old_bytes = save(
-        &Blake3,
+        &Sha256,
         id,
         &CadPartV1 {
             id,
@@ -92,7 +92,7 @@ fn main() {
     println!("stored {} bytes as CadPart v1", old_bytes.len());
 
     // What the new build reads.
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let part: CadPartV2 = loader.load(&old_bytes).expect("load as v2");
     println!("loaded: {part:?}");
 
@@ -109,7 +109,7 @@ fn main() {
     );
 
     // Current-version data round-trips without any migration.
-    let current = save(&Blake3, id, &part).expect("save v2");
+    let current = save(&Sha256, id, &part).expect("save v2");
     let again: CadPartV2 = loader.load(&current).expect("load v2");
     assert_eq!(again, part);
 

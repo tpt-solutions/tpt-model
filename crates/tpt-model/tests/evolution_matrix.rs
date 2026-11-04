@@ -5,7 +5,7 @@
 //! and that the defaults and migrations fill in what should be filled in.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::ir_serde;
 use tpt_model::load::{save, Loader};
@@ -231,8 +231,8 @@ fn registry_and_migrations() -> (Registry, Migrations) {
 fn loader<'a>(
     registry: &'a Registry,
     migrations: &'a Migrations,
-) -> Loader<'a, Blake3, BoundsValidator> {
-    Loader::new(registry, migrations, Blake3, BoundsValidator::default())
+) -> Loader<'a, Sha256, BoundsValidator> {
+    Loader::new(registry, migrations, Sha256, BoundsValidator::default())
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         name: "bolt".into(),
         score: 5,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v1).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v1).unwrap()).unwrap();
     assert_eq!(got.id, id);
     assert_eq!(got.title, "bolt", "rename history carries name -> title");
     assert_eq!(got.score, 5);
@@ -279,7 +279,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         score: 5,
         tags: tags(),
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v2).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v2).unwrap()).unwrap();
     assert_eq!(got.title, "bolt");
     assert_eq!(got.summary, "a,b");
 
@@ -291,7 +291,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         tags: tags(),
         enabled: false,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v4).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v4).unwrap()).unwrap();
     assert!(!got.enabled, "existing values are kept, not defaulted");
 
     // V5 carries legacy_weight, which the custom migration turns into mass_g.
@@ -303,7 +303,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         enabled: true,
         legacy_weight: 3,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v5).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v5).unwrap()).unwrap();
     assert_eq!(got.mass_g, 3000.0);
 
     // V6 keeps mass_g, and the chain starts from there.
@@ -315,7 +315,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         enabled: true,
         mass_g: 1500.5,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v6).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v6).unwrap()).unwrap();
     assert_eq!(got.mass_g, 1500.5);
 
     // V7 with a non-default colour.
@@ -328,7 +328,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         mass_g: 2.0,
         color: Color::Blue,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v7).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v7).unwrap()).unwrap();
     assert_eq!(
         got.color,
         Color::Blue,
@@ -346,7 +346,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         color: Color::Blue,
         note: Some("hi".into()),
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v8).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v8).unwrap()).unwrap();
     assert_eq!(got.note, Some("hi".to_string()));
     assert_eq!(
         got.summary, "a,b",
@@ -364,7 +364,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         note: None,
         summary: "x".into(),
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v9).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v9).unwrap()).unwrap();
     assert_eq!(got.summary, "x");
     assert_eq!(got.revision, 1);
 
@@ -380,7 +380,7 @@ fn every_version_loads_as_latest_without_data_loss() {
         summary: "x".into(),
         revision: 42,
     };
-    let got: DocV10 = loader.load(&save(&Blake3, id, &v10).unwrap()).unwrap();
+    let got: DocV10 = loader.load(&save(&Sha256, id, &v10).unwrap()).unwrap();
     assert_eq!(got, v10);
 }
 

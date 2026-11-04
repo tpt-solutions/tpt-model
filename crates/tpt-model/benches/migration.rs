@@ -4,7 +4,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use serde::{Deserialize, Serialize};
 use std::hint::black_box;
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -72,7 +72,7 @@ fn setup() -> (Registry, Migrations, Vec<u8>) {
     registry.register::<BenchV4>().unwrap();
     let values: Vec<u64> = (0..1_000).collect();
     let bytes = save(
-        &Blake3,
+        &Sha256,
         EntityId::new_v7(1, [4; 10]),
         &BenchV1 {
             a: 1,
@@ -86,7 +86,7 @@ fn setup() -> (Registry, Migrations, Vec<u8>) {
 
 fn bench_load(c: &mut Criterion) {
     let (registry, migrations, bytes) = setup();
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     c.bench_function("load_v1_as_v4_1000_values", |b| {
         b.iter(|| {
             let got: BenchV4 = loader.load(black_box(&bytes)).unwrap();

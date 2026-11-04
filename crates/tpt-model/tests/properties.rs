@@ -3,7 +3,7 @@
 use proptest::collection::vec;
 use proptest::prelude::*;
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{migrate, MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry, UirNode};
@@ -152,9 +152,9 @@ proptest! {
     #[test]
     fn garbage_payloads_in_a_valid_envelope_fail_cleanly(bytes in vec(any::<u8>(), 0..256)) {
         let (registry, migrations) = fuzz_registry();
-        let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+        let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
         let id = EntityId::new_v7(1, [1; 10]);
-        let env = tpt_model::Envelope::seal(&Blake3, FuzzV1::SCHEMA_ID, 1, id, bytes).unwrap();
+        let env = tpt_model::Envelope::seal(&Sha256, FuzzV1::SCHEMA_ID, 1, id, bytes).unwrap();
         let _ = loader.load::<FuzzV3>(&env.encode());
     }
 
@@ -162,9 +162,9 @@ proptest! {
     #[test]
     fn values_survive_the_chain(a in any::<u32>(), tags in vec("[a-z]{0,5}", 0..4)) {
         let (registry, migrations) = fuzz_registry();
-        let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+        let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
         let id = EntityId::new_v7(7, [2; 10]);
-        let bytes = save(&Blake3, id, &FuzzV1 { a, tags: tags.clone() }).unwrap();
+        let bytes = save(&Sha256, id, &FuzzV1 { a, tags: tags.clone() }).unwrap();
         let got: FuzzV3 = loader.load(&bytes).unwrap();
         prop_assert_eq!(got.a, a);
         prop_assert_eq!(got.tags, tags);

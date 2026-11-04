@@ -6,7 +6,7 @@ Source of truth: [spec.txt](spec.txt). Tick boxes as you go.
 - External TPT crates (tpt-uir, tpt-validex, tpt-crypto, tpt-primitives, tpt-testkit) are **stubbed locally** via traits/mock crates; swap for real ones later.
 - **Cargo workspace**: `tpt-model`, `tpt-model-derive`, `tpt-model-cli`, plus stub crates.
 - **One real Rust struct per version** (`CadPartV1`, `CadPartV2`); migrations are `impl Migration`; derive emits compile errors for removed fields lacking `migrate`.
-- `SchemaId` = BLAKE3-style hash over a canonical, field-order-normalized schema encoding (pure Rust, no_std). **Deviation:** the id is a `const fn` sponge digest, because `Model::SCHEMA_ID` must be a `const`. Tamper detection uses BLAKE3 (pure feature) through the `tpt-crypto` trait.
+- `SchemaId` = SHA-256-style hash over a canonical, field-order-normalized schema encoding (pure Rust, no_std). **Deviation:** the id is a `const fn` sponge digest, because `Model::SCHEMA_ID` must be a `const`. Tamper detection uses SHA-256 (`sha2`, pure Rust) through the `tpt-crypto` trait.
 - **Serde <-> UirNode**: custom Serializer/Deserializer targeting the IR tree; byte encoding is tpt-uir's job.
 - **Explicit scoped registry** (no_std friendly); optional std-only global auto-registration behind a feature.
 - Scope: **all 4 phases**. Squash CLI = **analyze & report** (plan/patch, optional `--apply` later).
@@ -19,7 +19,7 @@ Source of truth: [spec.txt](spec.txt). Tick boxes as you go.
 - [x] `#![no_std]` + `extern crate alloc` in core; `std` / `global-registry` feature flags
 - [x] CI config (fmt, clippy, test, `thumbv7em`/`wasm32` no_std build check) — `.github/workflows/ci.yml`
 - [x] README with crate map and quickstart
-- [x] Verify zero C-FFI (cargo tree audit / `cargo deny`) — `deny.toml`. Shipped graph has no `-sys` or C-compiling crates. Exception: blake3 lists `cc` as a build dependency, which compiles nothing under its `pure` feature; the exception is scoped to blake3 in `deny.toml`.
+- [x] Verify zero C-FFI (cargo tree audit / `cargo deny`) — `deny.toml`. Shipped graph has no `-sys` or C-compiling crates. No wrapper exception is needed: the digest is `sha2`/`hmac` (pure Rust). The earlier BLAKE3 exception for `cc` was removed.
 
 ## 1. Phase 1 — Meta-Model & Macros (spec weeks 1-3)
 ### Schema (`tpt_model::schema`)
@@ -116,7 +116,7 @@ Added after a code review. See the plan for detail and ordering: Section A first
 
 ### B. Missing features
 - [x] Shape-aware validator that uses the source-version schema. Done in `load` (`LoadError::SourceShape`), not in the validex stub
-- [x] Keyed digest example for tamper evidence; document that unkeyed BLAKE3 detects corruption only. `KeyedBlake3` in `tpt-crypto-stub`, `examples/keyed_digest.rs`, `tests/tamper.rs`, README and SECURITY.md
+- [x] Keyed digest example for tamper evidence; document that unkeyed SHA-256 detects corruption only. `KeyedSha256` in `tpt-crypto-stub`, `examples/keyed_digest.rs`, `tests/tamper.rs`, README and SECURITY.md
 - [x] Link-time auto-registration: **Decided: not implemented.** Registration stays explicit (`registry.register::<T>()`, `registry::global::register::<T>()`), documented in the README design notes. It avoids a linker-section dependency
 - [x] JSON Schema / TypeScript export: `export::json_schema` and `export::typescript`, tested in `tests/tooling.rs` and `tests/export_typescript.rs`. Validation against the JSON Schema meta-schema is not run in tests
 

@@ -29,12 +29,9 @@ confidence-threshold = 0.9
 multiple-versions = "warn"
 wildcards = "deny"
 # C toolchain and FFI glue must not appear in the shipped graph.
-#
-# Exception: blake3 lists `cc` as a build dependency. With its `pure` feature (which
-# tpt-crypto-stub enables) its build script compiles no C or assembly, so the exception
-# is scoped to that single wrapper.
+# sha2 and hmac are pure Rust, so no wrapper exception is needed.
 deny = [
-    { name = "cc", wrappers = ["blake3"] },
+    { name = "cc" },
     { name = "cmake" },
     { name = "pkg-config" },
     { name = "bindgen" },

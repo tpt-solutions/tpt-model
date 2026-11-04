@@ -1,7 +1,7 @@
 //! Nested named types are checked at the version in flight, not the latest version.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
@@ -42,8 +42,8 @@ fn nested_type_is_checked_at_the_outer_version() {
     let value = OuterV1 {
         inner: InnerV1 { a: 1 },
     };
-    let bytes = save(&Blake3, id(), &value).unwrap();
-    let got: OuterV1 = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default())
+    let bytes = save(&Sha256, id(), &value).unwrap();
+    let got: OuterV1 = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default())
         .load(&bytes)
         .unwrap();
     assert_eq!(got, value);

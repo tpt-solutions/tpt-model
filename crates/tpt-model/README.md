@@ -115,8 +115,8 @@ cargo build -p tpt-model --no-default-features --target thumbv7em-none-eabihf
 
 ## Tamper evidence
 
-`Blake3` (the default digest) detects **corruption**. Anyone who can rewrite stored bytes can
-recompute their hash too. For **forgery** detection, use `KeyedBlake3` from `tpt-crypto-stub` with a
+`Sha256` (the default digest) detects **corruption**. Anyone who can rewrite stored bytes can
+recompute their hash too. For **forgery** detection, use `KeyedSha256` from `tpt-crypto-stub` with a
 secret key. See [`examples/keyed_digest.rs`](examples/keyed_digest.rs).
 
 `SchemaId` is not a cryptographic hash. It identifies a schema shape. Tamper detection uses the

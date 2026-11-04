@@ -7,6 +7,12 @@ All notable changes to this project are recorded here. The format follows
 
 ### Changed (breaking, before 1.0)
 
+* The default digest is SHA-256 (`Sha256`, pure Rust `sha2`). It replaces BLAKE3, so the
+  C-compiling `cc` build-dependency exception in `deny.toml` is gone.
+* `KeyedSha256` (HMAC-SHA256 via `hmac`) replaces `KeyedBlake3`.
+* Envelope format 2 adds a digest-algorithm byte after the format byte. Format 1 (BLAKE3)
+  envelopes are refused with `UnsupportedFormat(1)`. Verifying with the wrong algorithm returns
+  `EnvelopeError::DigestMismatch`.
 * `access::redact` takes a `&Registry` and redacts nested structs, enum payloads and sequences.
   Nested types the registry cannot resolve are replaced by `null`.
 * `load` checks the stored tree against its source-version schema before migrating. Failures

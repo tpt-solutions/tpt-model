@@ -6,7 +6,7 @@
 //! Run with `cargo run -p tpt-model --example config_file`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -72,7 +72,7 @@ fn main() {
 
     let id = EntityId::new_v7(1_700_000_000_000, [9; 10]);
     let stored = save(
-        &Blake3,
+        &Sha256,
         id,
         &ConfigV1 {
             server: "example.org".into(),
@@ -81,7 +81,7 @@ fn main() {
     )
     .expect("save v1");
 
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let config: ConfigV3 = loader.load(&stored).expect("load as v3");
     println!("{config:?}");
     assert_eq!(

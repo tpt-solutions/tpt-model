@@ -2,7 +2,7 @@
 //! adding a variant.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
@@ -88,8 +88,8 @@ fn an_added_variant_reads_old_data_unchanged() {
     registry.register::<LevelV2>().unwrap();
     let migrations = Migrations::new();
     let id = EntityId::new_v7(1_700_000_000_000, [8; 10]);
-    let bytes = save(&Blake3, id, &LevelV1::High).unwrap();
-    let got: LevelV2 = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default())
+    let bytes = save(&Sha256, id, &LevelV1::High).unwrap();
+    let got: LevelV2 = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default())
         .load(&bytes)
         .unwrap();
     assert_eq!(got, LevelV2::High);
@@ -102,7 +102,7 @@ fn a_new_variant_is_refused_by_the_old_version() {
     let mut new_registry = Registry::new();
     new_registry.register::<LevelV2>().unwrap();
     let id = EntityId::new_v7(1_700_000_000_000, [8; 10]);
-    let bytes = save(&Blake3, id, &LevelV2::Mid).unwrap();
+    let bytes = save(&Sha256, id, &LevelV2::Mid).unwrap();
 
     let mut old_registry = Registry::new();
     old_registry.register::<LevelV1>().unwrap();
@@ -110,7 +110,7 @@ fn a_new_variant_is_refused_by_the_old_version() {
     let err = Loader::new(
         &old_registry,
         &migrations,
-        Blake3,
+        Sha256,
         BoundsValidator::default(),
     )
     .load::<LevelV1>(&bytes)

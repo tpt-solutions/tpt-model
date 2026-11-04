@@ -26,7 +26,7 @@ version 1. Set `name = "..."` to choose the name yourself.
 ## 2. Save with it
 
 ```rust
-let stored = tpt_model::load::save(&Blake3, id, &part_v1)?;
+let stored = tpt_model::load::save(&Sha256, id, &part_v1)?;
 ```
 
 `stored` is the envelope: schema id, version, entity id, payload, and a hash. Write it wherever
@@ -95,7 +95,7 @@ are registered by that call.
 ## 5. Read old data with the new code
 
 ```rust
-let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
 let part: CadPartV2 = loader.load(&stored)?;
 ```
 
