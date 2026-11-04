@@ -18,7 +18,7 @@ COMMANDS:
                    the plan. --patch writes it as a unified diff; --apply edits the files and
                    restores them if a write fails.
     inspect        Print the envelope header and the stored tree of one sealed entity. The
-                   hash is checked with unkeyed BLAKE3, or with --key-hex when keyed.
+                   hash is checked with unkeyed SHA-256, or with --key-hex when keyed.
     new-migration  Print Rust source for the next version of TYPE: a copy of its latest
                    version, bumped, with a migration stub from the latest version. Paste it
                    into the source; nothing is written.

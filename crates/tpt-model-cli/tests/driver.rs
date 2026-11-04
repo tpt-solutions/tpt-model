@@ -1,7 +1,7 @@
 //! Command-line driver: argument parsing, JSON plan output and `inspect`.
 
 use std::path::PathBuf;
-use tpt_crypto_stub::{Blake3, KeyedBlake3};
+use tpt_crypto_stub::{KeyedSha256, Sha256};
 use tpt_model::load::save;
 use tpt_model::{EntityId, Model, Registry};
 use tpt_model_cli::driver::{parse, Command, SquashOptions};
@@ -91,11 +91,11 @@ fn inspect_shows_the_header_and_the_tree() {
         title: "hi".into(),
         tags: vec!["a".into()],
     };
-    let bytes = save(&Blake3, id, &note).unwrap();
+    let bytes = save(&Sha256, id, &note).unwrap();
     let out = inspect::render(&bytes, None).unwrap();
     assert!(out.contains("version:   1"), "{out}");
     assert!(
-        out.contains("hash:      verified (unkeyed BLAKE3)"),
+        out.contains("hash:      verified (unkeyed SHA-256)"),
         "{out}"
     );
     assert!(out.contains("title: \"hi\""), "{out}");
@@ -110,7 +110,7 @@ fn inspect_with_the_wrong_key_fails_the_hash_check() {
         n: u32,
     }
     let id = EntityId::new_v7(1_700_000_000_000, [4; 10]);
-    let bytes = save(&KeyedBlake3::new([1; 32]), id, &KeyedV1 { n: 1 }).unwrap();
+    let bytes = save(&KeyedSha256::new([1; 32]), id, &KeyedV1 { n: 1 }).unwrap();
     assert!(inspect::render(&bytes, Some([2; 32])).is_err());
     assert!(inspect::render(&bytes, Some([1; 32])).is_ok());
 }

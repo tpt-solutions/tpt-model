@@ -1,12 +1,12 @@
 //! Tamper evidence with a keyed digest.
 //!
-//! The unkeyed [`Blake3`] digest catches corruption, but anyone who can rewrite the stored
+//! The unkeyed [`Sha256`] digest catches corruption, but anyone who can rewrite the stored
 //! bytes can also recompute the hash. A keyed digest stops that: the forger needs the key.
 //!
 //! Run with `cargo run -p tpt-model --example keyed_digest`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::{Blake3, KeyedBlake3};
+use tpt_crypto_stub::{KeyedSha256, Sha256};
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Envelope, Model, Registry, UirNode};
@@ -20,7 +20,7 @@ struct LedgerV1 {
 
 fn main() {
     // In a real application the key comes from a secret store, not from source code.
-    let key = KeyedBlake3::new([0x42; 32]);
+    let key = KeyedSha256::new([0x42; 32]);
     let id = EntityId::new_v7(1_700_000_000_000, [1; 10]);
 
     let mut registry = Registry::new();
@@ -42,7 +42,7 @@ fn main() {
     // An attacker rewrites the balance and re-seals it with the public, unkeyed digest.
     let node = UirNode::Map(vec![("balance".into(), UirNode::UInt(1_000_000))]);
     let forged = Envelope::seal(
-        &Blake3,
+        &Sha256,
         LedgerV1::SCHEMA_ID,
         1,
         id,

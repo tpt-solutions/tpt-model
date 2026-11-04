@@ -1,21 +1,21 @@
 //! `inspect`: shows the envelope header and the stored tree of one sealed entity.
 
 use std::fmt::Write as _;
-use tpt_crypto_stub::{Blake3, KeyedBlake3};
+use tpt_crypto_stub::{KeyedSha256, Sha256};
 use tpt_model::load::read_tree;
 use tpt_model::UirNode;
 
 /// Renders a sealed entity. The hash is checked with the keyed digest when `key` is given,
-/// and with unkeyed BLAKE3 otherwise. A failed check is an error, not a warning.
+/// and with unkeyed SHA-256 otherwise. A failed check is an error, not a warning.
 pub fn render(bytes: &[u8], key: Option<[u8; 32]>) -> Result<String, String> {
     let (env, tree) = match key {
-        Some(key) => read_tree(&KeyedBlake3::new(key), bytes).map_err(|e| e.to_string())?,
-        None => read_tree(&Blake3, bytes).map_err(|e| e.to_string())?,
+        Some(key) => read_tree(&KeyedSha256::new(key), bytes).map_err(|e| e.to_string())?,
+        None => read_tree(&Sha256, bytes).map_err(|e| e.to_string())?,
     };
     let digest_name = if key.is_some() {
-        "keyed BLAKE3"
+        "keyed SHA-256"
     } else {
-        "unkeyed BLAKE3"
+        "unkeyed SHA-256"
     };
     let mut out = String::new();
     let _ = writeln!(out, "schema id: {}", env.schema_id);

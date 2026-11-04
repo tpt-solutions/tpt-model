@@ -16,7 +16,7 @@ complete. Run it with `cargo run -p tpt-model --example quickstart`.
 
 ```rust
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -85,7 +85,7 @@ fn main() {
 
     // Written by the old build.
     let stored = save(
-        &Blake3,
+        &Sha256,
         id,
         &CadPartV1 {
             id,
@@ -96,7 +96,7 @@ fn main() {
     .expect("save");
 
     // Read by the new build.
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let part: CadPartV2 = loader.load(&stored).expect("load");
     println!("{part:?}");
     assert_eq!(part.material, Material::Titanium);
@@ -119,7 +119,7 @@ cargo run -p tpt-model --example cad_part
 | [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash` (plan and apply removal of old versions), `tpt-model inspect` (envelope and tree of a stored entity) and `tpt-model new-migration` (scaffold the next version); also `cargo tpt-model` | std |
 | `tpt-uir-stub` | Stand-in for `tpt-uir`: IR tree and canonical byte encoding | yes |
 | `tpt-validex-stub` | Stand-in for `tpt-validex`: byte-level validation | yes |
-| `tpt-crypto-stub` | Stand-in for `tpt-crypto`: digest trait, BLAKE3 (pure Rust) | yes |
+| `tpt-crypto-stub` | Stand-in for `tpt-crypto`: digest trait, SHA-256 (pure Rust) | yes |
 | `tpt-primitives-stub` | Stand-in for `tpt-primitives`: `Intent` and `Capability` | yes |
 | `tpt-testkit-stub` | Stand-in for `tpt-testkit`: golden-file helpers | std (tests only) |
 
@@ -187,9 +187,9 @@ Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`
 
 * **Schema ids** are a 256-bit digest computed in a `const fn`, so `Model::SCHEMA_ID` is a true
   constant. The digest is not cryptographic. It identifies a schema; tamper detection uses the
-  BLAKE3 digest from `tpt-crypto`. Field order does not affect the id.
-* **Tamper evidence.** `Blake3` detects corruption only: anyone who can rewrite stored bytes can
-  also recompute their hash. `KeyedBlake3` (from `tpt-crypto-stub`) also rejects forgeries, provided
+  SHA-256 digest from `tpt-crypto`. Field order does not affect the id.
+* **Tamper evidence.** `Sha256` detects corruption only: anyone who can rewrite stored bytes can
+  also recompute their hash. `KeyedSha256` (from `tpt-crypto-stub`) also rejects forgeries, provided
   the key stays secret. See `examples/keyed_digest.rs`.
 * **Constraints** (`min`, `max`) apply to struct fields at any depth, including fields of nested
   structs. They do not apply to enum payloads or to sequence items: a bound on an item would change

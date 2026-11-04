@@ -1,7 +1,7 @@
-//! Tamper evidence: unkeyed BLAKE3 detects corruption, keyed BLAKE3 also detects forgery.
+//! Tamper evidence: unkeyed SHA-256 detects corruption, keyed SHA-256 also detects forgery.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::{Blake3, KeyedBlake3};
+use tpt_crypto_stub::{KeyedSha256, Sha256};
 use tpt_model::envelope::EnvelopeError;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, LoadError, Loader};
@@ -25,7 +25,7 @@ fn id() -> EntityId {
 fn forged(balance: u64) -> Vec<u8> {
     let node = UirNode::Map(vec![("balance".into(), UirNode::UInt(balance))]);
     let payload = tpt_uir_stub::encode(&node);
-    Envelope::seal(&Blake3, LedgerV1::SCHEMA_ID, 1, id(), payload)
+    Envelope::seal(&Sha256, LedgerV1::SCHEMA_ID, 1, id(), payload)
         .unwrap()
         .encode()
 }
@@ -40,11 +40,11 @@ fn registry() -> Registry {
 fn keyed_digest_accepts_genuine_data() {
     let registry = registry();
     let migrations = Migrations::new();
-    let bytes = save(&KeyedBlake3::new(KEY), id(), &LedgerV1 { balance: 10 }).unwrap();
+    let bytes = save(&KeyedSha256::new(KEY), id(), &LedgerV1 { balance: 10 }).unwrap();
     let loader = Loader::new(
         &registry,
         &migrations,
-        KeyedBlake3::new(KEY),
+        KeyedSha256::new(KEY),
         BoundsValidator::default(),
     );
     assert_eq!(
@@ -60,22 +60,29 @@ fn keyed_digest_rejects_a_forgery_made_with_the_public_digest() {
     let loader = Loader::new(
         &registry,
         &migrations,
-        KeyedBlake3::new(KEY),
+        KeyedSha256::new(KEY),
         BoundsValidator::default(),
     );
     let err = loader.load::<LedgerV1>(&forged(1_000_000)).unwrap_err();
-    assert_eq!(err, LoadError::Envelope(EnvelopeError::Tampered));
+    // The forgery names the unkeyed digest, so the keyed check reports the algorithm mismatch.
+    assert_eq!(
+        err,
+        LoadError::Envelope(EnvelopeError::DigestMismatch {
+            stored: tpt_crypto_stub::id::SHA256,
+            expected: tpt_crypto_stub::id::HMAC_SHA256,
+        })
+    );
 }
 
 #[test]
 fn keyed_digest_rejects_data_sealed_with_another_key() {
     let registry = registry();
     let migrations = Migrations::new();
-    let bytes = save(&KeyedBlake3::new([1; 32]), id(), &LedgerV1 { balance: 10 }).unwrap();
+    let bytes = save(&KeyedSha256::new([1; 32]), id(), &LedgerV1 { balance: 10 }).unwrap();
     let loader = Loader::new(
         &registry,
         &migrations,
-        KeyedBlake3::new(KEY),
+        KeyedSha256::new(KEY),
         BoundsValidator::default(),
     );
     assert_eq!(
@@ -89,7 +96,7 @@ fn unkeyed_digest_accepts_a_forgery_documenting_its_limit() {
     // Why the keyed digest exists: the unkeyed one cannot tell a forgery from real data.
     let registry = registry();
     let migrations = Migrations::new();
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     assert_eq!(
         loader.load::<LedgerV1>(&forged(1_000_000)).unwrap(),
         LedgerV1 { balance: 1_000_000 }

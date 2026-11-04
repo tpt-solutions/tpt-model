@@ -61,14 +61,14 @@ pub mod __private {
     pub use crate::hash::SchemaId;
     pub use crate::schema::{Access, Constraint, Field, Prim, Schema, TypeDef, TypeRef, Variant};
     pub use crate::UirNode;
-    pub use tpt_crypto_stub::Blake3;
+    pub use tpt_crypto_stub::Sha256;
     pub use tpt_primitives_stub::Intent;
     pub use tpt_validex_stub::BoundsValidator;
 }
 
 /// Asserts that a value saved as `$old` loads as `$new` and equals `$expected`.
 ///
-/// Uses unkeyed BLAKE3 and the default validator, the same as the examples. Use it in a
+/// Uses unkeyed SHA-256 and the default validator, the same as the examples. Use it in a
 /// downstream crate's tests, one line per evolution:
 ///
 /// ```ignore
@@ -78,12 +78,12 @@ pub mod __private {
 macro_rules! assert_evolves {
     ($registry:expr, $migrations:expr, $old:expr, $new:ty, $expected:expr $(,)?) => {{
         let id = $crate::EntityId::new_v7(1_700_000_000_000, [0; 10]);
-        let digest = $crate::__private::Blake3;
+        let digest = $crate::__private::Sha256;
         let bytes = $crate::load::save(&digest, id, &$old).expect("save the old value");
         let loader = $crate::load::Loader::new(
             &$registry,
             &$migrations,
-            $crate::__private::Blake3,
+            $crate::__private::Sha256,
             $crate::__private::BoundsValidator::default(),
         );
         let got: $new = loader

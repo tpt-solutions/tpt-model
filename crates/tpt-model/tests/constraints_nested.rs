@@ -2,7 +2,7 @@
 //! validated.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
@@ -29,14 +29,14 @@ fn nested_struct_constraints_are_enforced() {
     let migrations = Migrations::new();
     let id = EntityId::new_v7(1_700_000_000_000, [3; 10]);
     let bytes = save(
-        &Blake3,
+        &Sha256,
         id,
         &PartV1 {
             limits: LimitsV1 { width: 11 },
         },
     )
     .unwrap();
-    let err = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default())
+    let err = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default())
         .load::<PartV1>(&bytes)
         .unwrap_err();
     let message = err.to_string();

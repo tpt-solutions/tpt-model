@@ -7,7 +7,7 @@
 //! Run with `cargo run -p tpt-model --example save_game`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -80,7 +80,7 @@ fn main() {
 
     let id = EntityId::new_v7(1_700_000_000_000, [10; 10]);
     let stored = save(
-        &Blake3,
+        &Sha256,
         id,
         &SaveV1 {
             player: "ada".into(),
@@ -89,7 +89,7 @@ fn main() {
     )
     .expect("save v1");
 
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let game: SaveV2 = loader.load(&stored).expect("load as v2");
     println!("{game:?}");
     assert_eq!(

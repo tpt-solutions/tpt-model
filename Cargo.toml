@@ -29,7 +29,8 @@ tpt-primitives-stub = { path = "crates/tpt-primitives-stub", version = "0.1.0" }
 tpt-testkit-stub = { path = "crates/tpt-testkit-stub", version = "0.1.0" }
 serde = { version = "1.0", default-features = false }
 uuid = { version = "1.28", default-features = false }
-blake3 = { version = "1.8", default-features = false, features = ["pure"] }
+sha2 = { version = "0.10", default-features = false }
+hmac = { version = "0.12", default-features = false }
 syn = { version = "3", features = ["full", "visit", "extra-traits"] }
 quote = "1"
 proc-macro2 = { version = "1", features = ["span-locations"] }

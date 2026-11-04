@@ -6,7 +6,7 @@
 //! Run with `cargo run -p tpt-model --example custom_migration`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -57,9 +57,9 @@ fn main() {
         .expect("reading v1 -> v2");
 
     let id = EntityId::new_v7(1_700_000_000_000, [12; 10]);
-    let stored = save(&Blake3, id, &ReadingV1 { celsius: 21.456 }).expect("save v1");
+    let stored = save(&Sha256, id, &ReadingV1 { celsius: 21.456 }).expect("save v1");
 
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let reading: ReadingV2 = loader.load(&stored).expect("load as v2");
     println!("{reading:?}");
     assert_eq!(

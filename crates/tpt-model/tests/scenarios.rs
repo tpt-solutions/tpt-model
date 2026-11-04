@@ -2,7 +2,7 @@
 //! tampering, strict automatic evolution, access control and graph checks.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::access;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, LoadError, Loader};
@@ -18,8 +18,8 @@ fn id() -> EntityId {
 fn loader<'a>(
     registry: &'a Registry,
     migrations: &'a Migrations,
-) -> Loader<'a, Blake3, BoundsValidator> {
-    Loader::new(registry, migrations, Blake3, BoundsValidator::default())
+) -> Loader<'a, Sha256, BoundsValidator> {
+    Loader::new(registry, migrations, Sha256, BoundsValidator::default())
 }
 
 fn identity(old: &UirNode, _ctx: &MigrationContext) -> Result<UirNode, MigrationError> {
@@ -46,7 +46,7 @@ fn missing_middle_version_is_a_gap() {
     registry.register::<GapV1>().unwrap();
     registry.register::<GapV3>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &GapV1 { x: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &GapV1 { x: 1 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<GapV3>(&bytes)
         .unwrap_err();
@@ -110,7 +110,7 @@ fn two_equally_short_paths_are_ambiguous() {
     migrations.register::<Amb24>(&mut registry).unwrap();
     migrations.register::<Amb34>(&mut registry).unwrap();
     registry.register::<AmbV4>().unwrap();
-    let bytes = save(&Blake3, id(), &AmbV1 { x: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &AmbV1 { x: 1 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<AmbV4>(&bytes)
         .unwrap_err();
@@ -171,7 +171,7 @@ fn data_below_minimum_supported_is_refused() {
     registry.register::<FloorV2>().unwrap();
     registry.register::<FloorV3>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &FloorV1 { x: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &FloorV1 { x: 1 }).unwrap();
     let mut loader = loader(&registry, &migrations);
     loader.min_supported = Some(2);
     let err = loader.load::<FloorV3>(&bytes).unwrap_err();
@@ -184,7 +184,7 @@ fn data_below_minimum_supported_is_refused() {
         })
     );
     // At the floor, loading works.
-    let bytes = save(&Blake3, id(), &FloorV2 { x: 1, y: 2 }).unwrap();
+    let bytes = save(&Sha256, id(), &FloorV2 { x: 1, y: 2 }).unwrap();
     let got: FloorV3 = loader.load(&bytes).unwrap();
     assert_eq!((got.x, got.y), (1, 2));
 }
@@ -195,7 +195,7 @@ fn newer_data_is_refused_as_a_downgrade() {
     registry.register::<FloorV2>().unwrap();
     registry.register::<FloorV3>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &FloorV3 { x: 1, y: 2 }).unwrap();
+    let bytes = save(&Sha256, id(), &FloorV3 { x: 1, y: 2 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<FloorV2>(&bytes)
         .unwrap_err();
@@ -216,7 +216,7 @@ fn modified_payload_is_detected_before_anything_else() {
     let mut registry = Registry::new();
     registry.register::<FloorV1>().unwrap();
     let migrations = Migrations::new();
-    let mut bytes = save(&Blake3, id(), &FloorV1 { x: 1 }).unwrap();
+    let mut bytes = save(&Sha256, id(), &FloorV1 { x: 1 }).unwrap();
     let payload_byte = bytes.len() - 40;
     bytes[payload_byte] ^= 0xff;
     let err = loader(&registry, &migrations)
@@ -232,7 +232,7 @@ fn modified_payload_is_detected_before_anything_else() {
 fn unknown_schema_id_is_reported() {
     let registry = Registry::new();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &FloorV1 { x: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &FloorV1 { x: 1 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<FloorV1>(&bytes)
         .unwrap_err();
@@ -244,7 +244,7 @@ fn wrong_requested_type_is_reported() {
     let mut registry = Registry::new();
     registry.register::<GapV1>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &GapV1 { x: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &GapV1 { x: 1 }).unwrap();
     let mut other = Registry::new();
     other.register::<FloorV1>().unwrap();
     other.register::<GapV1>().unwrap();
@@ -282,7 +282,7 @@ fn new_required_field_without_default_fails() {
     registry.register::<AutoV1>().unwrap();
     registry.register::<AutoV2>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &AutoV1 { keep: 1 }).unwrap();
+    let bytes = save(&Sha256, id(), &AutoV1 { keep: 1 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<AutoV2>(&bytes)
         .unwrap_err();
@@ -321,7 +321,7 @@ fn removed_field_with_migrate_needs_a_registered_migration() {
     registry.register::<RemovalV1>().unwrap();
     registry.register::<RemovalV2>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &RemovalV1 { keep: 1, old: 9 }).unwrap();
+    let bytes = save(&Sha256, id(), &RemovalV1 { keep: 1, old: 9 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<RemovalV2>(&bytes)
         .unwrap_err();
@@ -360,7 +360,7 @@ fn integer_to_float_widening_is_automatic() {
     registry.register::<WidenV1>().unwrap();
     registry.register::<WidenV2>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &WidenV1 { value: -4 }).unwrap();
+    let bytes = save(&Sha256, id(), &WidenV1 { value: -4 }).unwrap();
     let got: WidenV2 = loader(&registry, &migrations).load(&bytes).unwrap();
     assert_eq!(got.value, -4.0);
 }
@@ -371,7 +371,7 @@ fn float_to_integer_narrowing_needs_an_explicit_migration() {
     registry.register::<WidenV2>().unwrap();
     registry.register::<WidenV3>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &WidenV2 { value: 2.5 }).unwrap();
+    let bytes = save(&Sha256, id(), &WidenV2 { value: 2.5 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<WidenV3>(&bytes)
         .unwrap_err();
@@ -404,7 +404,7 @@ fn field_that_vanishes_without_removed_in_is_an_error() {
     registry.register::<ExtraV1>().unwrap();
     registry.register::<ExtraV2>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &ExtraV1 { keep: 1, extra: 2 }).unwrap();
+    let bytes = save(&Sha256, id(), &ExtraV1 { keep: 1, extra: 2 }).unwrap();
     let err = loader(&registry, &migrations)
         .load::<ExtraV2>(&bytes)
         .unwrap_err();
@@ -436,7 +436,7 @@ fn malformed_default_is_reported() {
     registry.register::<BadDefaultV1>().unwrap();
     registry.register::<BadDefaultV2>().unwrap();
     let migrations = Migrations::new();
-    let bytes = save(&Blake3, id(), &BadDefaultV1 {}).unwrap();
+    let bytes = save(&Sha256, id(), &BadDefaultV1 {}).unwrap();
     let err = loader(&registry, &migrations)
         .load::<BadDefaultV2>(&bytes)
         .unwrap_err();
@@ -477,7 +477,7 @@ fn nested_enums_round_trip_and_unknown_variants_fail() {
         maybe: Some(Shape::Empty),
     };
     let got: HolderV1 = loader(&registry, &migrations)
-        .load(&save(&Blake3, id(), &value).unwrap())
+        .load(&save(&Sha256, id(), &value).unwrap())
         .unwrap();
     assert_eq!(got.shape, Shape::Circle(3));
     assert_eq!(got.maybe, Some(Shape::Empty));
@@ -486,7 +486,7 @@ fn nested_enums_round_trip_and_unknown_variants_fail() {
     let mut node = tpt_model::ir_serde::to_node(&value).unwrap();
     node.insert("shape", UirNode::Str("Hexagon".into()));
     let bytes = tpt_uir_stub::encode(&node);
-    let env = tpt_model::Envelope::seal(&Blake3, HolderV1::SCHEMA_ID, 1, id(), bytes).unwrap();
+    let env = tpt_model::Envelope::seal(&Sha256, HolderV1::SCHEMA_ID, 1, id(), bytes).unwrap();
     let err = loader(&registry, &migrations)
         .load::<HolderV1>(&env.encode())
         .unwrap_err();
@@ -653,7 +653,7 @@ fn constraints_are_enforced_on_load() {
         code: "abc".into(),
     };
     let got: BoundedV1 = loader(&registry, &migrations)
-        .load(&save(&Blake3, id(), &ok).unwrap())
+        .load(&save(&Sha256, id(), &ok).unwrap())
         .unwrap();
     assert_eq!(got.count, 4);
 
@@ -663,7 +663,7 @@ fn constraints_are_enforced_on_load() {
         code: "a".into(),
     };
     let err = loader(&registry, &migrations)
-        .load::<BoundedV1>(&save(&Blake3, id(), &too_big).unwrap())
+        .load::<BoundedV1>(&save(&Sha256, id(), &too_big).unwrap())
         .unwrap_err();
     assert!(
         matches!(&err, LoadError::SourceShape { error: tpt_model::shape::ShapeError::Constraint { path, .. }, .. } if path == "$.count"),
@@ -676,7 +676,7 @@ fn constraints_are_enforced_on_load() {
         code: "a".into(),
     };
     assert!(loader(&registry, &migrations)
-        .load::<BoundedV1>(&save(&Blake3, id(), &too_low).unwrap())
+        .load::<BoundedV1>(&save(&Sha256, id(), &too_low).unwrap())
         .is_err());
 
     let long_code = BoundedV1 {
@@ -685,7 +685,7 @@ fn constraints_are_enforced_on_load() {
         code: "abcd".into(),
     };
     assert!(loader(&registry, &migrations)
-        .load::<BoundedV1>(&save(&Blake3, id(), &long_code).unwrap())
+        .load::<BoundedV1>(&save(&Sha256, id(), &long_code).unwrap())
         .is_err());
 }
 
@@ -780,13 +780,13 @@ fn a_removal_without_migrate_is_dropped_automatically() {
 
 #[test]
 fn read_tree_returns_the_stored_tree_without_knowing_the_type() {
-    let bytes = save(&Blake3, id(), &FloorV1 { x: 3 }).unwrap();
-    let (env, node) = tpt_model::load::read_tree(&Blake3, &bytes).unwrap();
+    let bytes = save(&Sha256, id(), &FloorV1 { x: 3 }).unwrap();
+    let (env, node) = tpt_model::load::read_tree(&Sha256, &bytes).unwrap();
     assert_eq!(env.version, 1);
     assert_eq!(node.get("x"), Some(&UirNode::UInt(3)));
 
     let mut tampered = bytes;
     let last = tampered.len() - 1;
     tampered[last] ^= 1;
-    assert!(tpt_model::load::read_tree(&Blake3, &tampered).is_err());
+    assert!(tpt_model::load::read_tree(&Sha256, &tampered).is_err());
 }

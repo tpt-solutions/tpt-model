@@ -115,14 +115,14 @@ proptest! {
         let registry = two_versions::<AddV1, AddV2>();
         let migrations = Migrations::new();
         let id = EntityId::new_v7(1_700_000_000_000, bytes);
-        let digest = tpt_model::__private::Blake3;
+        let digest = tpt_model::__private::Sha256;
         let bytes = tpt_model::load::save(&digest, id, &AddV1 { first }).unwrap();
         let envelope = tpt_model::Envelope::decode(&bytes).unwrap();
         prop_assert_eq!(envelope.entity_id, id);
         let loader = tpt_model::load::Loader::new(
             &registry,
             &migrations,
-            tpt_model::__private::Blake3,
+            tpt_model::__private::Sha256,
             tpt_model::__private::BoundsValidator::default(),
         );
         let got: AddV2 = loader.load(&bytes).unwrap();

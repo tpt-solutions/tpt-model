@@ -3,7 +3,7 @@
 //! be a value or an error. A panic fails the test.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::Loader;
 use tpt_model::{EntityId, Envelope, Model, Registry};
@@ -49,7 +49,7 @@ fn sealed_random_payloads_never_panic_the_loader() {
     registry.register::<SmokeV1>().unwrap();
     registry.register::<SmokeV2>().unwrap();
     let migrations = Migrations::new();
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let id = EntityId::new_v7(1_700_000_000_000, [1; 10]);
 
     let mut rng = Xorshift(0x9E37_79B9_7F4A_7C15);
@@ -58,7 +58,7 @@ fn sealed_random_payloads_never_panic_the_loader() {
         let len = (rng.next() % 96) as usize;
         let payload = rng.bytes(len);
         let version = (round % 3) + 1;
-        let envelope = Envelope::seal(&Blake3, SmokeV1::SCHEMA_ID, version, id, payload).unwrap();
+        let envelope = Envelope::seal(&Sha256, SmokeV1::SCHEMA_ID, version, id, payload).unwrap();
         let bytes = envelope.encode();
         if loader.load::<SmokeV1>(&bytes).is_ok() || loader.load::<SmokeV2>(&bytes).is_ok() {
             accepted += 1;

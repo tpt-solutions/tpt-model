@@ -3,7 +3,7 @@
 //! Run with `cargo run -p tpt-model --example quickstart`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -72,7 +72,7 @@ fn main() {
 
     // Written by the old build.
     let stored = save(
-        &Blake3,
+        &Sha256,
         id,
         &CadPartV1 {
             id,
@@ -83,7 +83,7 @@ fn main() {
     .expect("save");
 
     // Read by the new build.
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let part: CadPartV2 = loader.load(&stored).expect("load");
     println!("{part:?}");
     assert_eq!(part.material, Material::Titanium);

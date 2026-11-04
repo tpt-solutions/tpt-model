@@ -6,6 +6,12 @@ All notable changes to `tpt-crypto-stub` are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed (breaking, before 1.0)
+
+* `Blake3` is replaced by `Sha256` (pure-Rust `sha2`). `KeyedBlake3` is replaced by `KeyedSha256`
+  (HMAC-SHA256 via `hmac`).
+* `Digest` gains `fn id(&self) -> u8`, naming the algorithm. Constants are in `tpt_crypto_stub::id`.
+
 ### Added
 
 * `Digest` trait, `Hash32` and the unkeyed `Blake3` digest (pure-Rust backend).

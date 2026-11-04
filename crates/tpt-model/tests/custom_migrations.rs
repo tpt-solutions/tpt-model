@@ -5,7 +5,7 @@
 //! through a removal that happened in a skipped version.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
@@ -50,14 +50,14 @@ fn custom_migration_may_leave_a_renamed_key_for_completion() {
     let mut migrations = Migrations::new();
     migrations.register::<RenStep>(&mut registry).unwrap();
     let bytes = save(
-        &Blake3,
+        &Sha256,
         id(),
         &RenV1 {
             name: "bolt".into(),
         },
     )
     .unwrap();
-    let got: RenV2 = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default())
+    let got: RenV2 = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default())
         .load(&bytes)
         .unwrap();
     assert_eq!(
@@ -99,8 +99,8 @@ fn field_removed_in_a_skipped_version_is_dropped() {
     let mut registry = Registry::new();
     let mut migrations = Migrations::new();
     migrations.register::<SkipStep>(&mut registry).unwrap();
-    let bytes = save(&Blake3, id(), &SkipV1 { keep: 5, old: 9 }).unwrap();
-    let got: SkipV3 = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default())
+    let bytes = save(&Sha256, id(), &SkipV1 { keep: 5, old: 9 }).unwrap();
+    let got: SkipV3 = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default())
         .load(&bytes)
         .unwrap();
     assert_eq!(got, SkipV3 { keep: 5 });

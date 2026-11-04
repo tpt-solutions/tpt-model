@@ -4,7 +4,8 @@
 //!
 //! ```text
 //! magic        4   "TPTM"
-//! format       1   1
+//! format       1   2
+//! digest       1   algorithm id from `tpt_crypto_stub::id` (1 = SHA-256, 2 = HMAC-SHA256)
 //! schema_id   32
 //! version      4
 //! entity_id   16
@@ -12,6 +13,9 @@
 //! payload      payload_len
 //! hash        32   digest(header ++ payload), from the Digest implementation
 //! ```
+//!
+//! Format 1 envelopes used SHA-256 and are refused. Their hash cannot be checked
+//! with the current digests.
 
 use crate::entity::EntityId;
 use crate::hash::SchemaId;
@@ -20,10 +24,16 @@ use core::fmt;
 use tpt_crypto_stub::{ct_eq, Digest, Hash32};
 
 pub const MAGIC: [u8; 4] = *b"TPTM";
-pub const FORMAT: u8 = 1;
+pub const FORMAT: u8 = 2;
 /// Largest payload accepted by [`Envelope::decode`].
 pub const MAX_PAYLOAD: usize = 64 * 1024 * 1024;
-const HEADER_LEN: usize = 4 + 1 + 32 + 4 + 16 + 4;
+const FORMAT_AT: usize = 4;
+const DIGEST_AT: usize = 5;
+const SCHEMA_AT: usize = 6;
+const VERSION_AT: usize = 38;
+const ENTITY_AT: usize = 42;
+const PAYLOAD_LEN_AT: usize = 58;
+const HEADER_LEN: usize = PAYLOAD_LEN_AT + 4;
 const TRAILER_LEN: usize = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,6 +49,11 @@ pub enum EnvelopeError {
     TrailingBytes(usize),
     /// The stored hash does not match the header and payload.
     Tampered,
+    /// The envelope names a different digest algorithm than the one used to check it.
+    DigestMismatch {
+        stored: u8,
+        expected: u8,
+    },
 }
 
 impl fmt::Display for EnvelopeError {
@@ -57,6 +72,10 @@ impl fmt::Display for EnvelopeError {
             }
             EnvelopeError::TrailingBytes(n) => write!(f, "{n} unexpected trailing bytes"),
             EnvelopeError::Tampered => f.write_str("envelope hash mismatch: data was modified"),
+            EnvelopeError::DigestMismatch { stored, expected } => write!(
+                f,
+                "envelope was sealed with digest {stored}, but the checker uses digest {expected}"
+            ),
         }
     }
 }
@@ -67,6 +86,8 @@ pub type ModelEnvelope = Envelope;
 /// A sealed entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Envelope {
+    /// Algorithm id of the digest that sealed this envelope.
+    pub digest: u8,
     pub schema_id: SchemaId,
     pub version: u32,
     pub entity_id: EntityId,
@@ -86,9 +107,11 @@ impl Envelope {
         if payload.len() > MAX_PAYLOAD {
             return Err(EnvelopeError::PayloadTooLarge(payload.len()));
         }
-        let header = header_bytes(schema_id, version, entity_id, payload.len());
+        let digest_id = digest.id();
+        let header = header_bytes(digest_id, schema_id, version, entity_id, payload.len());
         let hash = digest.digest(&[&header, &payload]);
         Ok(Envelope {
+            digest: digest_id,
             schema_id,
             version,
             entity_id,
@@ -99,12 +122,7 @@ impl Envelope {
 
     /// Serializes the envelope.
     pub fn encode(&self) -> Vec<u8> {
-        let header = header_bytes(
-            self.schema_id,
-            self.version,
-            self.entity_id,
-            self.payload.len(),
-        );
+        let header = self.header();
         let mut out = Vec::with_capacity(HEADER_LEN + self.payload.len() + TRAILER_LEN);
         out.extend_from_slice(&header);
         out.extend_from_slice(&self.payload);
@@ -123,15 +141,26 @@ impl Envelope {
         if bytes[0..4] != MAGIC {
             return Err(EnvelopeError::BadMagic);
         }
-        if bytes[4] != FORMAT {
-            return Err(EnvelopeError::UnsupportedFormat(bytes[4]));
+        if bytes[FORMAT_AT] != FORMAT {
+            return Err(EnvelopeError::UnsupportedFormat(bytes[FORMAT_AT]));
         }
+        let digest = bytes[DIGEST_AT];
         let mut schema = [0u8; 32];
-        schema.copy_from_slice(&bytes[5..37]);
-        let version = u32::from_le_bytes([bytes[37], bytes[38], bytes[39], bytes[40]]);
+        schema.copy_from_slice(&bytes[SCHEMA_AT..VERSION_AT]);
+        let version = u32::from_le_bytes([
+            bytes[VERSION_AT],
+            bytes[VERSION_AT + 1],
+            bytes[VERSION_AT + 2],
+            bytes[VERSION_AT + 3],
+        ]);
         let mut entity = [0u8; 16];
-        entity.copy_from_slice(&bytes[41..57]);
-        let payload_len = u32::from_le_bytes([bytes[57], bytes[58], bytes[59], bytes[60]]) as usize;
+        entity.copy_from_slice(&bytes[ENTITY_AT..PAYLOAD_LEN_AT]);
+        let payload_len = u32::from_le_bytes([
+            bytes[PAYLOAD_LEN_AT],
+            bytes[PAYLOAD_LEN_AT + 1],
+            bytes[PAYLOAD_LEN_AT + 2],
+            bytes[PAYLOAD_LEN_AT + 3],
+        ]) as usize;
         if payload_len > MAX_PAYLOAD {
             return Err(EnvelopeError::PayloadTooLarge(payload_len));
         }
@@ -149,6 +178,7 @@ impl Envelope {
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&bytes[needed - TRAILER_LEN..]);
         Ok(Envelope {
+            digest,
             schema_id: SchemaId(schema),
             version,
             entity_id: EntityId::from_bytes(entity),
@@ -157,15 +187,29 @@ impl Envelope {
         })
     }
 
-    /// Recomputes the hash and compares it in constant time.
-    pub fn verify<D: Digest>(&self, digest: &D) -> Result<(), EnvelopeError> {
-        let header = header_bytes(
+    /// The header bytes this envelope is hashed with.
+    fn header(&self) -> [u8; HEADER_LEN] {
+        header_bytes(
+            self.digest,
             self.schema_id,
             self.version,
             self.entity_id,
             self.payload.len(),
-        );
-        let expected = digest.digest(&[&header, &self.payload]);
+        )
+    }
+
+    /// Recomputes the hash with `digest` and compares it in constant time.
+    ///
+    /// Returns [`EnvelopeError::DigestMismatch`] if the envelope was sealed with a
+    /// different algorithm, for example an unkeyed envelope checked with a keyed digest.
+    pub fn verify<D: Digest>(&self, digest: &D) -> Result<(), EnvelopeError> {
+        if self.digest != digest.id() {
+            return Err(EnvelopeError::DigestMismatch {
+                stored: self.digest,
+                expected: digest.id(),
+            });
+        }
+        let expected = digest.digest(&[&self.header(), &self.payload]);
         if ct_eq(&expected, &self.hash) {
             Ok(())
         } else {
@@ -175,6 +219,7 @@ impl Envelope {
 }
 
 fn header_bytes(
+    digest: u8,
     schema_id: SchemaId,
     version: u32,
     entity_id: EntityId,
@@ -182,22 +227,23 @@ fn header_bytes(
 ) -> [u8; HEADER_LEN] {
     let mut h = [0u8; HEADER_LEN];
     h[0..4].copy_from_slice(&MAGIC);
-    h[4] = FORMAT;
-    h[5..37].copy_from_slice(schema_id.as_bytes());
-    h[37..41].copy_from_slice(&version.to_le_bytes());
-    h[41..57].copy_from_slice(entity_id.as_bytes());
-    h[57..61].copy_from_slice(&(payload_len as u32).to_le_bytes());
+    h[FORMAT_AT] = FORMAT;
+    h[DIGEST_AT] = digest;
+    h[SCHEMA_AT..VERSION_AT].copy_from_slice(schema_id.as_bytes());
+    h[VERSION_AT..ENTITY_AT].copy_from_slice(&version.to_le_bytes());
+    h[ENTITY_AT..PAYLOAD_LEN_AT].copy_from_slice(entity_id.as_bytes());
+    h[PAYLOAD_LEN_AT..HEADER_LEN].copy_from_slice(&(payload_len as u32).to_le_bytes());
     h
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tpt_crypto_stub::Blake3;
+    use tpt_crypto_stub::Sha256;
 
     fn sample() -> Envelope {
         Envelope::seal(
-            &Blake3,
+            &Sha256,
             SchemaId([7; 32]),
             2,
             EntityId::new_v7(42, [1; 10]),
@@ -212,7 +258,7 @@ mod tests {
         let bytes = env.encode();
         let back = Envelope::decode(&bytes).unwrap();
         assert_eq!(back, env);
-        back.verify(&Blake3).unwrap();
+        back.verify(&Sha256).unwrap();
     }
 
     #[test]
@@ -223,7 +269,7 @@ mod tests {
             bad[i] ^= 0x01;
             let env = Envelope::decode(&bad).unwrap();
             assert_eq!(
-                env.verify(&Blake3),
+                env.verify(&Sha256),
                 Err(EnvelopeError::Tampered),
                 "byte {i}"
             );
@@ -258,10 +304,74 @@ mod tests {
     #[test]
     fn huge_declared_length_is_rejected_before_allocation() {
         let mut bytes = sample().encode();
-        bytes[57..61].copy_from_slice(&u32::MAX.to_le_bytes());
+        bytes[PAYLOAD_LEN_AT..HEADER_LEN].copy_from_slice(&u32::MAX.to_le_bytes());
         assert_eq!(
             Envelope::decode(&bytes),
             Err(EnvelopeError::PayloadTooLarge(u32::MAX as usize))
         );
+    }
+}
+
+#[cfg(test)]
+mod digest_tests {
+    use super::*;
+    use tpt_crypto_stub::{KeyedSha256, Sha256};
+
+    fn sealed_with<D: Digest>(d: &D) -> Envelope {
+        Envelope::seal(
+            d,
+            SchemaId([3; 32]),
+            1,
+            EntityId::new_v7(7, [2; 10]),
+            alloc::vec![9, 9],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn format_one_envelopes_are_refused() {
+        let mut bytes = sealed_with(&Sha256).encode();
+        bytes[FORMAT_AT] = 1;
+        assert_eq!(
+            Envelope::decode(&bytes),
+            Err(EnvelopeError::UnsupportedFormat(1))
+        );
+    }
+
+    #[test]
+    fn envelope_names_its_digest() {
+        let env = sealed_with(&Sha256);
+        assert_eq!(env.digest, tpt_crypto_stub::id::SHA256);
+        let back = Envelope::decode(&env.encode()).unwrap();
+        assert_eq!(back.digest, tpt_crypto_stub::id::SHA256);
+        back.verify(&Sha256).unwrap();
+    }
+
+    #[test]
+    fn unkeyed_and_keyed_envelopes_do_not_verify_under_each_other() {
+        let keyed = KeyedSha256::new([5; 32]);
+        let env = sealed_with(&keyed);
+        assert_eq!(
+            env.verify(&Sha256),
+            Err(EnvelopeError::DigestMismatch {
+                stored: tpt_crypto_stub::id::HMAC_SHA256,
+                expected: tpt_crypto_stub::id::SHA256,
+            })
+        );
+        env.verify(&keyed).unwrap();
+        // A different key is a forgery, reported as tampering.
+        assert_eq!(
+            env.verify(&KeyedSha256::new([6; 32])),
+            Err(EnvelopeError::Tampered)
+        );
+    }
+
+    #[test]
+    fn digest_byte_is_covered_by_the_hash() {
+        // Changing the stored digest id without re-sealing must not verify.
+        let mut bytes = sealed_with(&KeyedSha256::new([5; 32])).encode();
+        bytes[DIGEST_AT] = tpt_crypto_stub::id::SHA256;
+        let env = Envelope::decode(&bytes).unwrap();
+        assert!(env.verify(&Sha256).is_err());
     }
 }

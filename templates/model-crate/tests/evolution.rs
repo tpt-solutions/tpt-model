@@ -1,7 +1,7 @@
 //! Evolution tests for the item model.
 
 use std::path::PathBuf;
-use tpt_crypto_stub::Blake3;
+use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
@@ -21,7 +21,7 @@ fn v1_items_load_as_v2_with_no_quantity() {
     let migrations = Migrations::new();
     let id = EntityId::new_v7(1_700_000_000_000, [1; 10]);
     let stored = save(
-        &Blake3,
+        &Sha256,
         id,
         &ItemV1 {
             id,
@@ -29,7 +29,7 @@ fn v1_items_load_as_v2_with_no_quantity() {
         },
     )
     .unwrap();
-    let loader = Loader::new(&registry, &migrations, Blake3, BoundsValidator::default());
+    let loader = Loader::new(&registry, &migrations, Sha256, BoundsValidator::default());
     let item: ItemV2 = loader.load(&stored).unwrap();
     assert_eq!(item.name, "bolt");
     assert_eq!(item.quantity, None);
