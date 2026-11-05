@@ -1,11 +1,11 @@
 //! Nested named types are checked at the version in flight, not the latest version.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 fn id() -> EntityId {
     EntityId::new_v7(1_700_000_000_000, [5; 10])

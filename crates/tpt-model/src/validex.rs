@@ -1,14 +1,7 @@
-//! Local stand-in for `tpt-validex`.
-//!
-//! The real validator runs over raw bytes against a schema description. The
-//! stub provides the same shape: a [`Validator`] trait and a [`BoundsValidator`]
-//! that checks that the bytes are a well-formed IR encoding within limits.
-
-#![no_std]
-#![forbid(unsafe_code)]
+//! Payload validation before decoding: [`Validator`] and [`BoundsValidator`].
 
 use core::fmt;
-use tpt_uir_stub::{decode, UirError};
+use crate::uir::{decode, UirError};
 
 /// Identifies the schema a byte payload is supposed to match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

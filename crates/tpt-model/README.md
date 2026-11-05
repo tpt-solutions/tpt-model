@@ -19,8 +19,7 @@ cargo add tpt-model
 ```
 
 The derive macro is re-exported, so `tpt-model` is the only dependency you need for models.
-You also need a digest and validator for the load pipeline; the workspace provides local stand-ins
-(`tpt-crypto-stub`, `tpt-validex-stub`) until the real TPT crates are available.
+The digest and validator for the load pipeline are built in (`tpt_model::crypto` and `tpt_model::validex`).
 
 ## Quick start
 
@@ -78,7 +77,7 @@ The [`cad_part`](examples/cad_part.rs) example adds tamper rejection and current
 
 1. Envelope read, with strict lengths, the magic bytes, and no trailing bytes.
 2. Tamper check. The envelope hash is recomputed and compared in constant time.
-3. Validation of the raw payload (`tpt-validex-stub` in this workspace).
+3. Validation of the raw payload (`tpt_model::validex`).
 4. Bytes to the IR tree (`UirNode`).
 5. Validation of the tree against the schema of the version it was stored with (`LoadError::SourceShape`).
 6. Migration plan from the stored version to the current one. Gaps, ambiguity and versions below
@@ -116,7 +115,7 @@ cargo build -p tpt-model --no-default-features --target thumbv7em-none-eabihf
 ## Tamper evidence
 
 `Sha256` (the default digest) detects **corruption**. Anyone who can rewrite stored bytes can
-recompute their hash too. For **forgery** detection, use `KeyedSha256` from `tpt-crypto-stub` with a
+recompute their hash too. For **forgery** detection, use `KeyedSha256` from `tpt_model::crypto` with a
 secret key. See [`examples/keyed_digest.rs`](examples/keyed_digest.rs).
 
 `SchemaId` is not a cryptographic hash. It identifies a schema shape. Tamper detection uses the

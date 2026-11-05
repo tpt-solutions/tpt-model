@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use tpt_model::access;
 use tpt_model::{Model, Registry, UirNode};
-use tpt_primitives_stub::Intent;
+use tpt_model::primitives::Intent;
 
 #[derive(Debug, Serialize, Deserialize, Model)]
 #[tpt(version = 1, name = "Note")]
@@ -105,7 +105,7 @@ fn granted_capability_keeps_nested_fields() {
             secret: "visible".into(),
         }],
     };
-    let granted = [tpt_primitives_stub::Capability("notes.private")];
+    let granted = [tpt_model::primitives::Capability("notes.private")];
     let out = access::redact(
         &registry,
         BoardV1::schema(),

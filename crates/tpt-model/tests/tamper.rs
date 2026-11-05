@@ -1,12 +1,12 @@
 //! Tamper evidence: unkeyed SHA-256 detects corruption, keyed SHA-256 also detects forgery.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::{KeyedSha256, Sha256};
+use tpt_model::crypto::{KeyedSha256, Sha256};
 use tpt_model::envelope::EnvelopeError;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, LoadError, Loader};
 use tpt_model::{EntityId, Envelope, Model, Registry, UirNode};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 const KEY: [u8; 32] = [0x42; 32];
 
@@ -24,7 +24,7 @@ fn id() -> EntityId {
 /// unkeyed digest.
 fn forged(balance: u64) -> Vec<u8> {
     let node = UirNode::Map(vec![("balance".into(), UirNode::UInt(balance))]);
-    let payload = tpt_uir_stub::encode(&node);
+    let payload = tpt_model::uir::encode(&node);
     Envelope::seal(&Sha256, LedgerV1::SCHEMA_ID, 1, id(), payload)
         .unwrap()
         .encode()
@@ -68,8 +68,8 @@ fn keyed_digest_rejects_a_forgery_made_with_the_public_digest() {
     assert_eq!(
         err,
         LoadError::Envelope(EnvelopeError::DigestMismatch {
-            stored: tpt_crypto_stub::id::SHA256,
-            expected: tpt_crypto_stub::id::HMAC_SHA256,
+            stored: tpt_model::crypto::id::SHA256,
+            expected: tpt_model::crypto::id::HMAC_SHA256,
         })
     );
 }

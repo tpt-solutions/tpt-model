@@ -1,11 +1,11 @@
 //! Evolution tests for the item model.
 
 use std::path::PathBuf;
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 use {{crate_name}}::{ItemV1, ItemV2};
 
 fn registry() -> Registry {

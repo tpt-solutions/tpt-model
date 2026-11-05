@@ -1,9 +1,9 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::{EntityId, Envelope, Migrations, Model, Registry};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 // Random bytes almost never carry a valid hash, so `envelope_load` rarely gets past the
 // tamper check. This target seals the fuzz input in an envelope with a correct hash, so the

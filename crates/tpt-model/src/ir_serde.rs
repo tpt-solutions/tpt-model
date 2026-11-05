@@ -24,7 +24,7 @@ use serde::de::{
     VariantAccess, Visitor,
 };
 use serde::ser::{self, Serialize};
-use tpt_uir_stub::UirNode;
+use crate::uir::UirNode;
 
 /// Error for both directions of the bridge.
 #[derive(Debug, Clone, PartialEq, Eq)]

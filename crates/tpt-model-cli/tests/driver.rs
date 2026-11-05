@@ -1,7 +1,7 @@
 //! Command-line driver: argument parsing, JSON plan output and `inspect`.
 
 use std::path::PathBuf;
-use tpt_crypto_stub::{KeyedSha256, Sha256};
+use tpt_model::crypto::{KeyedSha256, Sha256};
 use tpt_model::load::save;
 use tpt_model::{EntityId, Model, Registry};
 use tpt_model_cli::driver::{parse, Command, SquashOptions};

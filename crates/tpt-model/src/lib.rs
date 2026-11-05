@@ -17,6 +17,7 @@ extern crate self as tpt_model;
 
 pub mod access;
 pub mod check;
+pub mod crypto;
 pub mod default_expr;
 pub mod entity;
 pub mod envelope;
@@ -25,11 +26,14 @@ pub mod export;
 pub mod hash;
 pub mod ir_serde;
 pub mod load;
+pub mod primitives;
 pub mod registry;
 pub mod schema;
 pub mod shape;
 #[cfg(feature = "std")]
 pub mod snapshot;
+pub mod uir;
+pub mod validex;
 
 pub use entity::EntityId;
 pub use envelope::Envelope;
@@ -39,7 +43,7 @@ pub use load::{LoadError, Loader};
 pub use registry::{Registry, RegistryError};
 pub use schema::{Access, Constraint, Field, Prim, Schema, TypeDef, TypeRef, Variant};
 pub use tpt_model_derive::Model;
-pub use tpt_uir_stub::UirNode;
+pub use crate::uir::UirNode;
 
 /// A Rust type with a versioned schema.
 ///
@@ -60,10 +64,10 @@ pub mod __private {
     pub use crate::evolve::{MigrationContext, MigrationError};
     pub use crate::hash::SchemaId;
     pub use crate::schema::{Access, Constraint, Field, Prim, Schema, TypeDef, TypeRef, Variant};
-    pub use crate::UirNode;
-    pub use tpt_crypto_stub::Sha256;
-    pub use tpt_primitives_stub::Intent;
-    pub use tpt_validex_stub::BoundsValidator;
+    pub use crate::crypto::Sha256;
+    pub use crate::primitives::Intent;
+    pub use crate::uir::UirNode;
+    pub use crate::validex::BoundsValidator;
 }
 
 /// Asserts that a value saved as `$old` loads as `$new` and equals `$expected`.

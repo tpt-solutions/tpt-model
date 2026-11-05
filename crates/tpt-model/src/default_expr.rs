@@ -20,7 +20,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
-use tpt_uir_stub::UirNode;
+use crate::uir::UirNode;
 
 /// A malformed default expression.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -5,12 +5,12 @@
 //! and that the defaults and migrations fill in what should be filled in.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::ir_serde;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Model)]
 #[tpt(version = 1)]

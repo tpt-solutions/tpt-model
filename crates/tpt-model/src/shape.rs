@@ -5,7 +5,7 @@ use crate::schema::{Constraint, Prim, Schema, TypeDef, TypeRef};
 use alloc::format;
 use alloc::string::{String, ToString};
 use core::fmt;
-use tpt_uir_stub::UirNode;
+use crate::uir::UirNode;
 
 /// Deepest nesting the shape checker will follow (guards against cyclic data).
 const MAX_DEPTH: usize = 64;

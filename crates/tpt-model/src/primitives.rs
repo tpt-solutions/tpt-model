@@ -1,11 +1,4 @@
-//! Local stand-in for `tpt-primitives`.
-//!
-//! Models what an access check needs: an [`Intent`] (what the caller wants to do)
-//! and a [`Capability`] (what the caller has been granted). The real definitions
-//! live in `tpt-primitives`.
-
-#![no_std]
-#![forbid(unsafe_code)]
+//! Access-control vocabulary: [`Intent`] (what a caller wants to do) and [`Capability`] (what it holds).
 
 use core::fmt;
 

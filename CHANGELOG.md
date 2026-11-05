@@ -7,6 +7,12 @@ All notable changes to this project are recorded here. The format follows
 
 ### Changed (breaking, before 1.0)
 
+* The `tpt-uir-stub`, `tpt-validex-stub`, `tpt-crypto-stub` and `tpt-primitives-stub` crates are removed.
+  Their code is now in `tpt-model`, as the modules `uir` (`UirNode`, `encode`, `decode`),
+  `crypto` (`Digest`, `Sha256`, `KeyedSha256`, `ct_eq`), `validex` (`Validator`, `BoundsValidator`)
+  and `primitives` (`Intent`, `Capability`, `is_granted`). The public names are unchanged, so imports
+  become `tpt_model::crypto::Sha256` and so on. The `tpt-testkit-stub` helper is no longer a crate;
+  `tests/golden.rs` carries its own `assert_golden`.
 * The default digest is SHA-256 (`Sha256`, pure Rust `sha2`). It replaces BLAKE3, so the
   C-compiling `cc` build-dependency exception in `deny.toml` is gone.
 * `KeyedSha256` (HMAC-SHA256 via `hmac`) replaces `KeyedBlake3`.

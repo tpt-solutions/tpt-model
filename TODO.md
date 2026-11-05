@@ -3,8 +3,8 @@
 Source of truth: [spec.txt](spec.txt). Tick boxes as you go.
 
 ## Decisions (from clarifying Q&A)
-- External TPT crates (tpt-uir, tpt-validex, tpt-crypto, tpt-primitives, tpt-testkit) are **stubbed locally** via traits/mock crates; swap for real ones later.
-- **Cargo workspace**: `tpt-model`, `tpt-model-derive`, `tpt-model-cli`, plus stub crates.
+- External TPT crates (tpt-uir, tpt-validex, tpt-crypto, tpt-primitives) are **built into `tpt-model`** as the modules `uir`, `crypto`, `validex` and `primitives`, so the crate has no stub dependencies. Swap in the real crates later behind the same API.
+- **Cargo workspace**: `tpt-model`, `tpt-model-derive`, `tpt-model-cli`.
 - **One real Rust struct per version** (`CadPartV1`, `CadPartV2`); migrations are `impl Migration`; derive emits compile errors for removed fields lacking `migrate`.
 - `SchemaId` = SHA-256-style hash over a canonical, field-order-normalized schema encoding (pure Rust, no_std). **Deviation:** the id is a `const fn` sponge digest, because `Model::SCHEMA_ID` must be a `const`. Tamper detection uses SHA-256 (`sha2`, pure Rust) through the `tpt-crypto` trait.
 - **Serde <-> UirNode**: custom Serializer/Deserializer targeting the IR tree; byte encoding is tpt-uir's job.
@@ -15,7 +15,7 @@ Source of truth: [spec.txt](spec.txt). Tick boxes as you go.
 ## 0. Workspace setup
 - [x] Create Cargo workspace (`Cargo.toml`, `rust-toolchain.toml`, `.gitignore`, `git init`)
 - [x] Crates: `tpt-model`, `tpt-model-derive`, `tpt-model-cli`
-- [x] Stub crates: `tpt-uir-stub`, `tpt-validex-stub`, `tpt-crypto-stub`, `tpt-primitives-stub`, `tpt-testkit-stub`
+- [x] Stub crates: `tpt-uir-stub`, `tpt-validex-stub`, `tpt-crypto-stub`, `tpt-primitives-stub`, `tpt-testkit-stub` (folded into `tpt-model` and removed; see the Unreleased changelog entry)
 - [x] `#![no_std]` + `extern crate alloc` in core; `std` / `global-registry` feature flags
 - [x] CI config (fmt, clippy, test, `thumbv7em`/`wasm32` no_std build check) — `.github/workflows/ci.yml`
 - [x] README with crate map and quickstart
@@ -136,7 +136,7 @@ Added after a code review. See the plan for detail and ordering: Section A first
 - [x] Round-trip testkit macro: `assert_evolves!` is exported from `tpt-model`, not from the testkit stub (which would create a dev-dependency cycle). Generated proptests: `tests/evolution_proptest.rs`
 - [x] Docs: `docs/TUTORIAL.md`, `docs/COOKBOOK.md` (with the migrate-versus-automatic table), `docs/FAQ.md` (every error message)
 - [x] CONTRIBUTING.md, SECURITY.md; `docs/VERSIONING.md` covers what changes `SchemaId`
-- [ ] Install path: publishable CLI or prebuilt binaries; keep stub crates off crates.io. **Excluded:** publishing, by request
+- [ ] Install path: publishable CLI or prebuilt binaries. **Excluded:** publishing, by request
 - [x] Fix `docs/MIGRATION_GUIDE.md` claim that removal without `migrate` is "not allowed"
 
 ### E. CI and release automation
@@ -152,6 +152,6 @@ Added after a code review. See the plan for detail and ordering: Section A first
 - [x] `global-registry` tests (`tests/global_registry.rs`); derive positive snapshot (`tests/derive_snapshot.rs`); 32-bit: the core and stub suites pass as `i686-pc-windows-msvc` binaries, golden files included, and CI has a job for it
 
 ## Open items to confirm later
-- [ ] Real locations/APIs of tpt-uir, tpt-validex, tpt-crypto, tpt-primitives, tpt-testkit. **Waiting:** the real crates are not in this repo, so the stubs stay until they exist
+- [ ] Real locations/APIs of tpt-uir, tpt-validex, tpt-crypto, tpt-primitives. **Waiting:** the real APIs do not match what `tpt-model` uses (see the self-contained modules), so the in-house versions stay until they are reviewed
 - [x] Enum/union evolution rules. **Decided:** additions are automatic (old data reads); removing or renaming a variant needs a migration. Documented in `docs/COOKBOOK.md`
 - [x] Type-change rules beyond widening. **Decided:** only widening is automatic; every other change needs an explicit migration. Documented in `docs/COOKBOOK.md`

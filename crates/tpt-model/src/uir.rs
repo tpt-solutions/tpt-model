@@ -1,13 +1,7 @@
-//! Local stand-in for `tpt-uir`.
+//! `tpt-model`'s IR value tree: [`UirNode`], with a strict, bounds-checked byte encoding.
 //!
-//! Provides the IR tree ([`UirNode`]) that `tpt-model` migrates, plus a
-//! strict, bounds-checked byte encoding. The real encoding belongs to
-//! `tpt-uir`; this stub only has to be deterministic and safe on garbage input.
-
-#![no_std]
-#![forbid(unsafe_code)]
-
-extern crate alloc;
+//! The encoding is deterministic and safe on garbage input. It is the format
+//! stored in envelopes and migrated by the schema layer.
 
 use alloc::string::String;
 use alloc::vec::Vec;

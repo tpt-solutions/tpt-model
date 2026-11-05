@@ -19,9 +19,9 @@ use alloc::vec::Vec;
 use core::fmt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tpt_crypto_stub::Digest;
-use tpt_uir_stub::{decode, encode, UirError, UirNode};
-use tpt_validex_stub::{ExpectedSchema, ValidationError, Validator};
+use crate::crypto::Digest;
+use crate::uir::{decode, encode, UirError, UirNode};
+use crate::validex::{ExpectedSchema, ValidationError, Validator};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadError {

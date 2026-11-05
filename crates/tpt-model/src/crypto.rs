@@ -1,11 +1,7 @@
-//! Local stand-in for `tpt-crypto`.
+//! Digests for envelopes: the [`Digest`] trait, unkeyed [`Sha256`] and keyed [`KeyedSha256`] (HMAC-SHA256).
 //!
-//! `tpt-model` only depends on the [`Digest`] trait. [`Sha256`] is the default
-//! implementation. [`KeyedSha256`] is HMAC-SHA256 for tamper evidence against forgery.
-//! Both use pure-Rust backends (no C code).
-
-#![no_std]
-#![forbid(unsafe_code)]
+//! Both use pure-Rust backends. Unkeyed SHA-256 detects corruption only; the keyed
+//! digest also detects deliberate tampering.
 
 use hmac::{Hmac, Mac};
 use sha2::{Digest as _, Sha256 as Sha256Hasher};

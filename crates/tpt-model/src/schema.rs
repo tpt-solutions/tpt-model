@@ -9,7 +9,7 @@ use crate::hash::{
 };
 use alloc::format;
 use alloc::string::{String, ToString};
-use tpt_primitives_stub::Intent;
+use crate::primitives::Intent;
 
 /// Primitive leaf types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

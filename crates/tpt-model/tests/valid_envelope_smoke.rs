@@ -3,11 +3,11 @@
 //! be a value or an error. A panic fails the test.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::evolve::Migrations;
 use tpt_model::load::Loader;
 use tpt_model::{EntityId, Envelope, Model, Registry};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 #[derive(Debug, Serialize, Deserialize, Model)]
 #[tpt(version = 1, name = "Smoke")]

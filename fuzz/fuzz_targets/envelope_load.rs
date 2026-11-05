@@ -1,9 +1,9 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::{EntityId, Envelope, Migrations, Registry};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 // Arbitrary bytes through envelope parsing and the load pipeline must return an error or a value.
 fuzz_target!(|data: &[u8]| {

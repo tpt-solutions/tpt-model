@@ -5,7 +5,7 @@
 //! ```text
 //! magic        4   "TPTM"
 //! format       1   2
-//! digest       1   algorithm id from `tpt_crypto_stub::id` (1 = SHA-256, 2 = HMAC-SHA256)
+//! digest       1   algorithm id from `crate::crypto::id` (1 = SHA-256, 2 = HMAC-SHA256)
 //! schema_id   32
 //! version      4
 //! entity_id   16
@@ -21,7 +21,7 @@ use crate::entity::EntityId;
 use crate::hash::SchemaId;
 use alloc::vec::Vec;
 use core::fmt;
-use tpt_crypto_stub::{ct_eq, Digest, Hash32};
+use crate::crypto::{ct_eq, Digest, Hash32};
 
 pub const MAGIC: [u8; 4] = *b"TPTM";
 pub const FORMAT: u8 = 2;
@@ -239,7 +239,7 @@ fn header_bytes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tpt_crypto_stub::Sha256;
+    use crate::crypto::Sha256;
 
     fn sample() -> Envelope {
         Envelope::seal(
@@ -315,7 +315,7 @@ mod tests {
 #[cfg(test)]
 mod digest_tests {
     use super::*;
-    use tpt_crypto_stub::{KeyedSha256, Sha256};
+    use crate::crypto::{KeyedSha256, Sha256};
 
     fn sealed_with<D: Digest>(d: &D) -> Envelope {
         Envelope::seal(
@@ -341,9 +341,9 @@ mod digest_tests {
     #[test]
     fn envelope_names_its_digest() {
         let env = sealed_with(&Sha256);
-        assert_eq!(env.digest, tpt_crypto_stub::id::SHA256);
+        assert_eq!(env.digest, crate::crypto::id::SHA256);
         let back = Envelope::decode(&env.encode()).unwrap();
-        assert_eq!(back.digest, tpt_crypto_stub::id::SHA256);
+        assert_eq!(back.digest, crate::crypto::id::SHA256);
         back.verify(&Sha256).unwrap();
     }
 
@@ -354,8 +354,8 @@ mod digest_tests {
         assert_eq!(
             env.verify(&Sha256),
             Err(EnvelopeError::DigestMismatch {
-                stored: tpt_crypto_stub::id::HMAC_SHA256,
-                expected: tpt_crypto_stub::id::SHA256,
+                stored: crate::crypto::id::HMAC_SHA256,
+                expected: crate::crypto::id::SHA256,
             })
         );
         env.verify(&keyed).unwrap();
@@ -370,7 +370,7 @@ mod digest_tests {
     fn digest_byte_is_covered_by_the_hash() {
         // Changing the stored digest id without re-sealing must not verify.
         let mut bytes = sealed_with(&KeyedSha256::new([5; 32])).encode();
-        bytes[DIGEST_AT] = tpt_crypto_stub::id::SHA256;
+        bytes[DIGEST_AT] = crate::crypto::id::SHA256;
         let env = Envelope::decode(&bytes).unwrap();
         assert!(env.verify(&Sha256).is_err());
     }

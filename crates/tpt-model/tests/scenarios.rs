@@ -2,14 +2,14 @@
 //! tampering, strict automatic evolution, access control and graph checks.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::access;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, LoadError, Loader};
 use tpt_model::registry::RegistryError;
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
-use tpt_primitives_stub::{Capability, Intent};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::primitives::{Capability, Intent};
+use tpt_model::validex::BoundsValidator;
 
 fn id() -> EntityId {
     EntityId::new_v7(1_700_000_000_000, [9; 10])
@@ -485,7 +485,7 @@ fn nested_enums_round_trip_and_unknown_variants_fail() {
     // A variant name the registry does not know is rejected by shape validation.
     let mut node = tpt_model::ir_serde::to_node(&value).unwrap();
     node.insert("shape", UirNode::Str("Hexagon".into()));
-    let bytes = tpt_uir_stub::encode(&node);
+    let bytes = tpt_model::uir::encode(&node);
     let env = tpt_model::Envelope::seal(&Sha256, HolderV1::SCHEMA_ID, 1, id(), bytes).unwrap();
     let err = loader(&registry, &migrations)
         .load::<HolderV1>(&env.encode())

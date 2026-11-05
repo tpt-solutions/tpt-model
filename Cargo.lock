@@ -913,26 +913,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
-name = "tpt-crypto-stub"
-version = "0.1.0"
-dependencies = [
- "hmac",
- "sha2",
-]
-
-[[package]]
 name = "tpt-model"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "hmac",
  "proptest",
  "serde",
- "tpt-crypto-stub",
+ "sha2",
  "tpt-model-derive",
- "tpt-primitives-stub",
- "tpt-testkit-stub",
- "tpt-uir-stub",
- "tpt-validex-stub",
  "trybuild",
  "uuid",
 ]
@@ -945,7 +934,6 @@ dependencies = [
  "quote",
  "serde",
  "syn 3.0.9",
- "tpt-crypto-stub",
  "tpt-model",
 ]
 
@@ -956,25 +944,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
-]
-
-[[package]]
-name = "tpt-primitives-stub"
-version = "0.1.0"
-
-[[package]]
-name = "tpt-testkit-stub"
-version = "0.1.0"
-
-[[package]]
-name = "tpt-uir-stub"
-version = "0.1.0"
-
-[[package]]
-name = "tpt-validex-stub"
-version = "0.1.0"
-dependencies = [
- "tpt-uir-stub",
 ]
 
 [[package]]

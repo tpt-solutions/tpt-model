@@ -6,11 +6,11 @@
 //! Run with `cargo run -p tpt-model --example keyed_digest`.
 
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::{KeyedSha256, Sha256};
+use tpt_model::crypto::{KeyedSha256, Sha256};
 use tpt_model::evolve::Migrations;
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Envelope, Model, Registry, UirNode};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::validex::BoundsValidator;
 
 #[derive(Debug, Serialize, Deserialize, Model)]
 #[tpt(version = 1, name = "Ledger")]
@@ -46,7 +46,7 @@ fn main() {
         LedgerV1::SCHEMA_ID,
         1,
         id,
-        tpt_uir_stub::encode(&node),
+        tpt_model::uir::encode(&node),
     )
     .expect("seal")
     .encode();

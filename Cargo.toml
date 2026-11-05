@@ -4,11 +4,6 @@ members = [
     "crates/tpt-model",
     "crates/tpt-model-derive",
     "crates/tpt-model-cli",
-    "crates/tpt-uir-stub",
-    "crates/tpt-validex-stub",
-    "crates/tpt-crypto-stub",
-    "crates/tpt-primitives-stub",
-    "crates/tpt-testkit-stub",
 ]
 
 [workspace.package]
@@ -22,11 +17,6 @@ authors = ["TPT Solutions"]
 [workspace.dependencies]
 tpt-model = { path = "crates/tpt-model", version = "0.1.0" }
 tpt-model-derive = { path = "crates/tpt-model-derive", version = "0.1.0" }
-tpt-uir-stub = { path = "crates/tpt-uir-stub", version = "0.1.0" }
-tpt-validex-stub = { path = "crates/tpt-validex-stub", version = "0.1.0" }
-tpt-crypto-stub = { path = "crates/tpt-crypto-stub", version = "0.1.0" }
-tpt-primitives-stub = { path = "crates/tpt-primitives-stub", version = "0.1.0" }
-tpt-testkit-stub = { path = "crates/tpt-testkit-stub", version = "0.1.0" }
 serde = { version = "1.0", default-features = false }
 uuid = { version = "1.28", default-features = false }
 sha2 = { version = "0.10", default-features = false }

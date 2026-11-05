@@ -21,7 +21,7 @@ use alloc::vec::Vec;
 /// Per-version bookkeeping during the shortest-path search: distance, path count, parent.
 type SeenEntry = (u32, u32, Option<(u32, usize)>);
 use core::fmt;
-use tpt_uir_stub::UirNode;
+use crate::uir::UirNode;
 
 /// Context passed to a [`Migration`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

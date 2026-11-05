@@ -94,11 +94,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Core crate without std
         run: cargo build -p tpt-model --no-default-features --target ${{ matrix.target }}
-      - name: Stubs without std
-        run: >-
-          cargo build --target ${{ matrix.target }}
-          -p tpt-uir-stub -p tpt-crypto-stub -p tpt-validex-stub -p tpt-primitives-stub
-
   supply-chain:
     runs-on: ubuntu-latest
     steps:
@@ -184,8 +179,8 @@ jobs:
         with:
           targets: i686-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
-      - name: Core and stub crates as 32-bit binaries
-        run: cargo test --target i686-pc-windows-msvc -p tpt-model -p tpt-uir-stub -p tpt-validex-stub -p tpt-crypto-stub
+      - name: Core crate as a 32-bit binary
+        run: cargo test --target i686-pc-windows-msvc -p tpt-model
 
   coverage:
     # Report only: the job uploads lcov.info and does not gate merges.

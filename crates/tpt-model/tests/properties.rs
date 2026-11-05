@@ -3,12 +3,12 @@
 use proptest::collection::vec;
 use proptest::prelude::*;
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
+use tpt_model::crypto::Sha256;
 use tpt_model::evolve::{migrate, MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
 use tpt_model::{EntityId, Model, Registry, UirNode};
-use tpt_uir_stub::{decode, encode};
-use tpt_validex_stub::BoundsValidator;
+use tpt_model::uir::{decode, encode};
+use tpt_model::validex::BoundsValidator;
 
 fn leaf() -> impl Strategy<Value = UirNode> {
     prop_oneof![

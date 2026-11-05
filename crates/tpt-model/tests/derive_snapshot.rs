@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tpt_model::{EntityId, Model, Registry};
-use tpt_primitives_stub::Intent;
+use tpt_model::primitives::Intent;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Model)]
 #[tpt(version = 1, name = "Shape")]

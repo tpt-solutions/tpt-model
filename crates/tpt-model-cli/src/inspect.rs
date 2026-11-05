@@ -1,7 +1,7 @@
 //! `inspect`: shows the envelope header and the stored tree of one sealed entity.
 
 use std::fmt::Write as _;
-use tpt_crypto_stub::{KeyedSha256, Sha256};
+use tpt_model::crypto::{KeyedSha256, Sha256};
 use tpt_model::load::read_tree;
 use tpt_model::UirNode;
 

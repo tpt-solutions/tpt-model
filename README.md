@@ -16,11 +16,11 @@ complete. Run it with `cargo run -p tpt-model --example quickstart`.
 
 ```rust
 use serde::{Deserialize, Serialize};
-use tpt_crypto_stub::Sha256;
 use tpt_model::evolve::{MigrationContext, MigrationError, Migrations};
 use tpt_model::load::{save, Loader};
+use tpt_model::crypto::Sha256;
+use tpt_model::validex::BoundsValidator;
 use tpt_model::{EntityId, Migration, Model, Registry, UirNode};
-use tpt_validex_stub::BoundsValidator;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Model)]
 #[tpt(version = 1)]
@@ -117,14 +117,11 @@ cargo run -p tpt-model --example cad_part
 | [`tpt-model`](crates/tpt-model) | Schema graph, registry, evolution engine, envelope, load pipeline | yes |
 | [`tpt-model-derive`](crates/tpt-model-derive) | `#[derive(Model)]` | proc macro |
 | [`tpt-model-cli`](crates/tpt-model-cli) | `tpt-model squash` (plan and apply removal of old versions), `tpt-model inspect` (envelope and tree of a stored entity) and `tpt-model new-migration` (scaffold the next version); also `cargo tpt-model` | std |
-| `tpt-uir-stub` | Stand-in for `tpt-uir`: IR tree and canonical byte encoding | yes |
-| `tpt-validex-stub` | Stand-in for `tpt-validex`: byte-level validation | yes |
-| `tpt-crypto-stub` | Stand-in for `tpt-crypto`: digest trait, SHA-256 (pure Rust) | yes |
-| `tpt-primitives-stub` | Stand-in for `tpt-primitives`: `Intent` and `Capability` | yes |
-| `tpt-testkit-stub` | Stand-in for `tpt-testkit`: golden-file helpers | std (tests only) |
 
-The `*-stub` crates are local stand-ins for TPT crates that are not yet available. Swapping in
-the real crates means replacing their trait implementations; the public API of `tpt-model` stays the same.
+The IR tree, digests, validation and the access vocabulary are built into `tpt-model` as the
+modules `uir`, `crypto`, `validex` and `primitives`. The crate depends only on `serde`, `uuid`,
+`sha2` and `hmac`. When the real TPT crates are available, those modules can be replaced behind
+the same API.
 
 Each crate has its own README and CHANGELOG. To start a new model crate, use the
 [`cargo-generate` template](templates/model-crate) (`cargo generate --path templates/model-crate`).
@@ -189,7 +186,7 @@ Fuzz targets live in [`fuzz/`](fuzz). They need Linux or macOS with `cargo-fuzz`
   constant. The digest is not cryptographic. It identifies a schema; tamper detection uses the
   SHA-256 digest from `tpt-crypto`. Field order does not affect the id.
 * **Tamper evidence.** `Sha256` detects corruption only: anyone who can rewrite stored bytes can
-  also recompute their hash. `KeyedSha256` (from `tpt-crypto-stub`) also rejects forgeries, provided
+  also recompute their hash. `KeyedSha256` (from `tpt_model::crypto`) also rejects forgeries, provided
   the key stays secret. See `examples/keyed_digest.rs`.
 * **Constraints** (`min`, `max`) apply to struct fields at any depth, including fields of nested
   structs. They do not apply to enum payloads or to sequence items: a bound on an item would change

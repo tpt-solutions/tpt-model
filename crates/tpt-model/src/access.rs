@@ -8,8 +8,8 @@ use crate::registry::Registry;
 use crate::schema::{Field, Schema, TypeDef, TypeRef};
 use alloc::string::String;
 use core::fmt;
-use tpt_primitives_stub::{is_granted, Capability, Intent};
-use tpt_uir_stub::UirNode;
+use crate::primitives::{is_granted, Capability, Intent};
+use crate::uir::UirNode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccessError {
